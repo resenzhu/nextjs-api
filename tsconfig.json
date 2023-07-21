@@ -22,6 +22,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "dist",
+    "paths": {"@routers/*": ["src/routers/*"]},
     "resolveJsonModule": true,
     "rootDir": "src",
     "skipLibCheck": true,
