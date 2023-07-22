@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "if-env": "^1.0.4",
+    "pino": "^8.14.1",
     "socket.io": "^4.7.1"
   },
   "devDependencies": {
