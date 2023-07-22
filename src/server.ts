@@ -36,5 +36,5 @@ httpServer
     );
   })
   .on('error', (err: Error): void => {
-    logger.error(err, 'an error occured while starting the server.');
+    logger.error(err, 'an error occured while starting the server');
   });
