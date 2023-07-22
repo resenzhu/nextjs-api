@@ -19,10 +19,12 @@
   },
   "dependencies": {
     "if-env": "^1.0.4",
+    "luxon": "^3.3.0",
     "pino": "^8.14.1",
     "socket.io": "^4.7.1"
   },
   "devDependencies": {
+    "@types/luxon": "^3.3.1",
     "@types/node": "^20.4.2",
     "@typescript-eslint/eslint-plugin": "^6.1.0",
     "@typescript-eslint/parser": "^6.1.0",
