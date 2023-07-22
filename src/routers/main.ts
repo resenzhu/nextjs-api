@@ -1,5 +1,7 @@
-import {Server} from 'socket.io';
+import {Socket} from 'socket.io';
 
-const mainRouter = (server: Server) => {};
+const mainRouter = (socket: Socket) => {
+  socket.on('test', (): void => console.log('success'));
+};
 
 export default mainRouter;

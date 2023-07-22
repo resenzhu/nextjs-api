@@ -1,7 +1,7 @@
 import {IncomingMessage, createServer} from 'http';
 import {Server} from 'socket.io';
 import {config} from 'dotenv';
-import {mainRouter} from '@routers/index';
+import router from '@routers/index';
 
 if (process.env.NODE_ENV !== 'production') {
   config();
@@ -24,7 +24,7 @@ const ioServer = new Server({
   }
 });
 
-mainRouter(ioServer);
+router(ioServer);
 
 ioServer.attach(httpServer);
 httpServer.listen(process.env.APP_PORT);
