@@ -1,6 +1,7 @@
 import {IncomingMessage, createServer} from 'http';
 import {Server} from 'socket.io';
 import {config} from 'dotenv';
+import logger from '@utils/logger';
 import router from '@routers/index';
 
 if (process.env.NODE_ENV !== 'production') {
@@ -27,4 +28,13 @@ const ioServer = new Server({
 router(ioServer);
 
 ioServer.attach(httpServer);
-httpServer.listen(process.env.APP_PORT);
+httpServer
+  .listen(process.env.APP_PORT, (): void => {
+    logger.info(
+      {environment: process.env.NODE_ENV, port: process.env.APP_PORT},
+      'server started'
+    );
+  })
+  .on('error', (err: Error): void => {
+    logger.error(err, 'an error occured while starting the server.');
+  });
