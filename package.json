@@ -18,6 +18,7 @@
     "start:prod": "node dist/server.js"
   },
   "dependencies": {
+    "@nlpjs/basic": "^4.27.0",
     "if-env": "^1.0.4",
     "luxon": "^3.3.0",
     "pino": "^8.14.1",
