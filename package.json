@@ -12,6 +12,7 @@
     "upgrade": "ncu -u",
     "prettier": "prettier --write . !dist",
     "lint": "eslint . --ext .ts",
+    "train": "node chatbot.ts",
     "build": "esbuild src/server.ts --platform=node --bundle --minify --outfile=dist/server.js",
     "start": "if-env NODE_ENV=production && npm run start:prod || npm run start:dev",
     "start:dev": "nodemon src/server.ts",
