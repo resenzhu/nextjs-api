@@ -7,10 +7,6 @@ const mainRouter = (server: Server) => {
   main.on('connection', (socket: Socket): void => {
     const mainLogger = logger.child({scope: 'main', socketid: socket.id});
     mainLogger.info('socket connected');
-
-    socket.on('ask-chatbot', (request, callback): void => {
-      mainLogger.info('ask chatbot');
-    });
   });
 };
 
