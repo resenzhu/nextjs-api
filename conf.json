@@ -1,8 +1,0 @@
-{
-  "use": ["Basic"],
-  "settings": {
-    "nlp": {
-      "corpora": ["chatbot.json"]
-    }
-  }
-}
