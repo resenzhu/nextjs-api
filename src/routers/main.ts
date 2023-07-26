@@ -1,6 +1,14 @@
 import {Server, Socket} from 'socket.io';
 import logger from '@utils/logger';
 
+type AskChatbotReq = {
+  input: string;
+};
+
+type AskChatbotRes = {
+  reply: string;
+};
+
 const mainRouter = (server: Server) => {
   const main = server.of('/main');
 
@@ -8,10 +16,17 @@ const mainRouter = (server: Server) => {
     const mainLogger = logger.child({scope: 'main', socketid: socket.id});
     mainLogger.info('socket connected');
 
-    socket.on('ask-chatbot', (request, callback): void => {
-      mainLogger.info('ask chatbot');
-      callback('SUCCESS');
-    });
+    socket.on(
+      'ask-chatbot',
+      (request: AskChatbotReq, callback: Function): void => {
+        mainLogger.info({request: request}, 'ask chatbot');
+        const response: AskChatbotRes = {
+          reply: request.input
+        };
+        mainLogger.info({response: response}, 'ask chatbot response');
+        callback(response);
+      }
+    );
   });
 };
 
