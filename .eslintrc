@@ -165,7 +165,7 @@
     "operator-linebreak": "warn",
     "padded-blocks": ["warn", "never"],
     "padding-line-between-statements": "warn",
-    "quotes": ["warn", "single"],
+    "quotes": ["warn", "single", {"avoidEscape": true}],
     "rest-spread-spacing": "warn",
     "semi": ["warn", "always", {"omitLastInOneLineBlock": true}],
     "semi-spacing": "warn",
