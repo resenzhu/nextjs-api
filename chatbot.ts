@@ -1,6 +1,4 @@
-'use strict';
-
-const {dockStart} = require('@nlpjs/basic');
+const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
 dockStart({
   use: ['Basic'],
