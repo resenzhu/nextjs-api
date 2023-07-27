@@ -21,6 +21,7 @@
   "dependencies": {
     "@nlpjs/basic": "^4.27.0",
     "if-env": "^1.0.4",
+    "joi": "^17.9.2",
     "luxon": "^3.3.0",
     "pino": "^8.14.1",
     "socket.io": "^4.7.1"
