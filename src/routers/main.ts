@@ -1,4 +1,5 @@
 import {Server, Socket} from 'socket.io';
+import joi from 'joi';
 import logger from '@utils/logger';
 
 type AskChatbotReq = {
@@ -6,7 +7,11 @@ type AskChatbotReq = {
 };
 
 type AskChatbotRes = {
-  reply: string;
+  success: boolean;
+  error: {status: number; subStatus: number; message: string} | null;
+  data: {
+    reply: string;
+  } | null;
 };
 
 const mainRouter = (server: Server) => {
@@ -22,14 +27,37 @@ const mainRouter = (server: Server) => {
         callback: (response: AskChatbotRes) => void
       ): void => {
         mainLogger.info({request: request}, 'ask chatbot');
+        const requestSchema = joi.object({
+          input: joi.string().min(1).max(160)
+        });
+        const {value, error} = requestSchema.validate(request);
+        if (error) {
+          const response: AskChatbotRes = {
+            success: false,
+            error: {
+              status: 400,
+              subStatus: 0,
+              message: 'bad request'
+            },
+            data: null
+          };
+          mainLogger.warn({response: response}, 'ask chatbot failed');
+          callback(response);
+        }
+        const data = value as AskChatbotReq;
         const response: AskChatbotRes = {
-          reply: request.input
+          success: true,
+          error: null,
+          data: {
+            reply: data.input
+          }
         };
-        mainLogger.info({response: response}, 'ask chatbot response');
+        mainLogger.info({response: response}, 'ask chatbot success');
         callback(response);
       }
     );
   });
 };
 
+export type {AskChatbotReq, AskChatbotRes};
 export default mainRouter;
