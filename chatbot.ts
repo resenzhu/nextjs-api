@@ -1,10 +1,10 @@
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
 dockStart({
-  use: ['Basic'],
+  use: ['Basic', 'LangEn', 'LangId'],
   settings: {
     nlp: {
-      corpora: ['chatbot.json']
+      corpora: ['chatbot-en.json', 'chatbot-id.json']
     }
   }
 }).then((dock) => {
