@@ -8,24 +8,39 @@ type AskChatbotReq = {
 
 type AskChatbotRes = {
   success: boolean;
-  error: {status: number; subStatus: number; message: string} | null;
+  error: {
+    status: number;
+    subStatus: number;
+    message: string;
+  } | null;
   data: {
     reply: string;
   } | null;
 };
 
-const mainRouter = (server: Server) => {
-  const main = server.of('/main');
-  main.on('connection', (socket: Socket): void => {
-    const mainLogger = logger.child({namespace: 'main', socketid: socket.id});
-    mainLogger.info('socket connected');
+const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
+const mainRouter = async (server: Server): Promise<void> => {
+  const main = server.of('/main');
+  // eslint-disable-next-line
+  const chatbot = await dockStart({use: ['Basic']}).then((dock: any): any => {
+    logger.info('chatbot started');
+    const nlp = dock.get('nlp');
+    nlp.load('chatbot.nlp');
+    return nlp;
+  });
+  main.on('connection', (socket: Socket): void => {
+    const mainLogger = logger.child({
+      namespace: 'main',
+      socketid: socket.id
+    });
+    mainLogger.info('socket connected');
     socket.on(
       'ask-chatbot',
-      (
+      async (
         request: AskChatbotReq,
         callback: (response: AskChatbotRes) => void
-      ): void => {
+      ): Promise<void> => {
         mainLogger.info({request: request}, 'ask chatbot');
         const requestSchema = joi.object({
           input: joi.string().min(1).max(160)
@@ -45,11 +60,12 @@ const mainRouter = (server: Server) => {
           callback(response);
         }
         const data = value as AskChatbotReq;
+        const reply = await chatbot.process(data.input);
         const response: AskChatbotRes = {
           success: true,
           error: null,
           data: {
-            reply: data.input
+            reply: reply.answer
           }
         };
         mainLogger.info({response: response}, 'ask chatbot success');
