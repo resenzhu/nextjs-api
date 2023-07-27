@@ -11,14 +11,16 @@ type AskChatbotRes = {
 
 const mainRouter = (server: Server) => {
   const main = server.of('/main');
-
   main.on('connection', (socket: Socket): void => {
-    const mainLogger = logger.child({scope: 'main', socketid: socket.id});
+    const mainLogger = logger.child({namespace: 'main', socketid: socket.id});
     mainLogger.info('socket connected');
 
     socket.on(
       'ask-chatbot',
-      (request: AskChatbotReq, callback: Function): void => {
+      (
+        request: AskChatbotReq,
+        callback: (response: AskChatbotRes) => void
+      ): void => {
         mainLogger.info({request: request}, 'ask chatbot');
         const response: AskChatbotRes = {
           reply: request.input
