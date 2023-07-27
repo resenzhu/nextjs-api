@@ -1,6 +1,7 @@
 import {Server, Socket} from 'socket.io';
 import joi from 'joi';
 import logger from '@utils/logger';
+import {sanitize} from 'isomorphic-dompurify';
 
 type AskChatbotReq = {
   input: string;
@@ -60,7 +61,7 @@ const mainRouter = async (server: Server): Promise<void> => {
           callback(response);
         }
         const data = value as AskChatbotReq;
-        const reply = await chatbot.process(data.input);
+        const reply = await chatbot.process(sanitize(data.input).trim());
         const response: AskChatbotRes = {
           success: true,
           error: null,
