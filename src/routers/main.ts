@@ -23,13 +23,7 @@ const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
 const mainRouter = async (server: Server): Promise<void> => {
   const main = server.of('/main');
-  // eslint-disable-next-line
-  const chatbot = await dockStart({use: ['Basic']}).then((dock: any): any => {
-    logger.info('chatbot started');
-    const nlp = dock.get('nlp');
-    nlp.load('chatbot.nlp');
-    return nlp;
-  });
+  const chatbot = await dockStart().then((dock: any): any => dock.get('nlp')); // eslint-disable-line
   main.on('connection', (socket: Socket): void => {
     const mainLogger = logger.child({
       namespace: 'main',
@@ -73,6 +67,9 @@ const mainRouter = async (server: Server): Promise<void> => {
         callback(response);
       }
     );
+    socket.on('disconnect', (): void => {
+      mainLogger.info('socket disconnected');
+    });
   });
 };
 
