@@ -1,0 +1,47 @@
+{
+  "name": "Chatbot Indonesian Corpus",
+  "locale": "id-ID",
+  "data": [
+    {
+      "intent": "Greetings.Hello",
+      "utterances": [
+        "hai mas resen",
+        "halo pak resen",
+        "hei kak resen",
+        "hei sobat",
+        "halo bro",
+        "hallo sen"
+      ],
+      "answers": [
+        "Halo! Ada yang bisa saya bantu?",
+        "Hai! Ada yang perlu dibantu?",
+        "Selamat datang! Ada yang bisa saya bantu?",
+        "Halo! Ada yang bisa saya lakukan?",
+        "Hai! Bagaimana saya bisa membantu?",
+        "Halo! Ada yang perlu ditanyakan?"
+      ]
+    },
+    {
+      "intent": "None",
+      "utterances": ["lorem ipsum"],
+      "answers": [
+        "Maaf, saya tidak begitu mengerti. Bisakah Anda tolong mengulang pertanyaan Anda atau memberikan lebih banyak detail?",
+        "Maaf, saya kesulitan memahami apa yang Anda tanyakan. Bisakah Anda memberikan konteks lebih lanjut?",
+        "Maaf, saya tidak yakin apa maksud Anda. Bisakah Anda jelaskan lebih lanjut?",
+        "Maaf, saya tidak memiliki informasi yang Anda cari. Apakah ada yang lain yang bisa saya bantu?",
+        "Maaf jika saya tidak memahami dengan benar. Bisakah Anda memberikan informasi tambahan atau menanyakan pertanyaan lain?",
+        "Maaf, bisakah Anda memberikan informasi yang lebih spesifik agar saya dapat membantu lebih baik?",
+        "Maaf, saya kesulitan memahami permintaan Anda. Bisakah Anda coba menjelaskannya dengan cara yang berbeda?",
+        "Maaf, saya tidak bisa memahami pesan Anda. Bisakah Anda mencoba merumuskannya kembali atau menanyakan pertanyaan lain?",
+        "Maaf, sepertinya ada kesenjangan komunikasi. Bisakah Anda memberikan konteks lebih lanjut atau menanyakan pertanyaan dengan cara yang berbeda?",
+        "Maaf jika saya tidak memahami pertanyaan Anda. Bisakah Anda menyederhanakannya atau membaginya menjadi bagian yang lebih kecil?",
+        "Maaf, saya mengalami kesulitan memproses masukan Anda. Bisakah Anda memberikan informasi lebih lanjut atau menanyakan pertanyaan lain?",
+        "Maaf jika ada kebingungan. Bisakah Anda menjelaskan pertanyaan Anda atau memberikan konteks lebih lanjut?",
+        "Maaf, tampaknya saya tidak dapat memahami permintaan Anda. Bisakah Anda mencoba menjelaskannya dengan cara yang berbeda atau menanyakan pertanyaan lain?",
+        "Maaf, jika saya tidak memahaminya dengan tepat. Bisakah Anda merumuskan pertanyaan Anda kembali atau memberikan detail yang lebih spesifik?",
+        "Maaf, tapi saya tidak dapat menginterpretasikan pesan Anda. Bisakah Anda mencoba menyampaikannya dengan cara yang berbeda?",
+        "Maaf, saya tidak dapat memberikan tanggapan yang sesuai berdasarkan masukan Anda. Bisakah Anda mencoba mengajukan pertanyaan dengan cara lain?"
+      ]
+    }
+  ]
+}

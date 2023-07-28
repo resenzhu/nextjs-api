@@ -1,0 +1,67 @@
+{
+  "name": "Chatbot English Corpus",
+  "locale": "en-US",
+  "data": [
+    {
+      "intent": "Greetings.Hello",
+      "utterances": [
+        "hi resen",
+        "hello mr resen",
+        "hey there buddy",
+        "hello my dear friend",
+        "greetings bro resen",
+        "howdy my friend",
+        "well hello mate",
+        "good to see you",
+        "hi resen nice to see you",
+        "yo mate, it's good to be here"
+      ],
+      "answers": [
+        "Hello, how can I assist you today?",
+        "Hi there! How may I help you?",
+        "Hi there! How can I help you?",
+        "Hey! What can I do for you?",
+        "Greetings! How may I assist you?",
+        "Hello! How may I assist you with your inquiry?",
+        "Greetings! How can I be of service?",
+        "Greetings! How can I provide you with support?",
+        "Hello, how may I be of assistance to you?",
+        "Hey, nice to see you! What can I assist you with?",
+        "Hi there! Is there something specific you'd like to know?",
+        "Greetings! How can I provide you with the information you seek?",
+        "Well, hello! What knowledge can I share with you?",
+        "Hiya! What can I do for you today?",
+        "Hey, it's great to see you! How can I help?",
+        "Hey! How can I assist you in finding what you're looking for?",
+        "Hi! How can I provide you with the information you need?",
+        "Hello! How may I assist you with your request?"
+      ]
+    },
+    {
+      "intent": "None",
+      "utterances": ["lorem ipsum"],
+      "answers": [
+        "I'm sorry, I didn't quite catch that. Could you please rephrase your question or provide more details?",
+        "Apologies, but I'm having trouble understanding what you're asking. Can you please provide more context?",
+        "It seems like there was a misunderstanding. Could you please clarify or give more information?",
+        "I apologize for any confusion, but I'm unable to decipher your query. Can you please try rephrasing it?",
+        "Hmm, I'm sorry, but I'm not sure what you mean. Could you please elaborate further?",
+        "I'm afraid I don't have the information you're looking for. Is there something else I can assist you with?",
+        "I apologize if I'm not understanding correctly. Can you please provide additional details or ask a different question?",
+        "I'm sorry, could you please provide more specific information so that I can better assist you?",
+        "I'm sorry, I'm having difficulty understanding your request. Can you please try explaining it in a different way?",
+        "I apologize, but I couldn't grasp the meaning of your message. Could you please try rephrasing it or asking a different question?",
+        "It seems like there's a communication gap. Could you please provide more context or ask your question in a different way?",
+        "I apologize if I'm not comprehending your query. Can you please simplify it or break it down into smaller parts?",
+        "I'm sorry, I'm having trouble processing your input. Could you please provide more information or ask a different question?",
+        "I apologize for any confusion caused. Can you please clarify your question or provide more context?",
+        "It appears that I'm unable to understand your request. Can you please try explaining it differently or ask another question?",
+        "I apologize if I'm not getting it right. Can you please rephrase your query or provide more specific details?",
+        "I'm sorry, but I'm not able to interpret your message. Can you please try expressing it in a different way?",
+        "I apologize, but I'm unable to provide a suitable response based on your input. Can you please try asking in another way?",
+        "It seems like there's a misunderstanding. Can you please provide more details or ask your question again?",
+        "I apologize for any confusion. Can you please reframe your query or provide additional information?"
+      ]
+    }
+  ]
+}
