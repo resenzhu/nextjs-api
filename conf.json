@@ -2,10 +2,10 @@
   "use": ["Basic", "LangEn", "LangId"],
   "settings": {
     "nlp": {
+      "autoSave": false,
       "forceNER": true,
       "languages": ["en", "id"],
-      "corpora": ["chatbot/corpus-en.json", "chatbot/corpus-id.json"],
-      "modelFileName": "chatbot/model.nlp"
+      "corpora": ["chatbot-en.json", "chatbot-id.json"]
     }
   }
 }

@@ -23,7 +23,6 @@
     "noUnusedParameters": true,
     "outDir": "dist",
     "paths": {
-      "@chatbot/*": ["chatbot/*"],
       "@routers/*": ["src/routers/*"],
       "@utils/*": ["src/utils/*"]
     },
