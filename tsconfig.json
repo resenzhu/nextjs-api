@@ -22,7 +22,11 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "outDir": "dist",
-    "paths": {"@routers/*": ["src/routers/*"], "@utils/*": ["src/utils/*"]},
+    "paths": {
+      "@chatbot/*": ["chatbot/*"],
+      "@routers/*": ["src/routers/*"],
+      "@utils/*": ["src/utils/*"]
+    },
     "resolveJsonModule": true,
     "rootDir": "src",
     "skipLibCheck": true,
