@@ -19,6 +19,23 @@ type AskChatbotRes = {
   } | null;
 };
 
+type SubmitContactFormReq = {
+  name: string;
+  email: string;
+  message: string;
+  honeypot: string;
+};
+
+type SubmitContactFormRes = {
+  success: boolean;
+  error: {
+    status: number;
+    subStatus: number;
+    message: string;
+  } | null;
+  data: {} | null;
+};
+
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
 const mainRouter = async (server: Server): Promise<void> => {
@@ -65,6 +82,15 @@ const mainRouter = async (server: Server): Promise<void> => {
         };
         mainLogger.info({response: response}, 'ask chatbot success');
         callback(response);
+      }
+    );
+    socket.on(
+      'submit-contact-form',
+      (
+        request: SubmitContactFormReq,
+        callback: (response: SubmitContactFormRes) => void
+      ): void => {
+        mainLogger.info({request: request}, 'submit contact form');
       }
     );
     socket.on('disconnect', (): void => {
