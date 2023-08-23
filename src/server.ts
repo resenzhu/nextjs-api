@@ -18,7 +18,7 @@ const ioServer = new Server({
   },
   allowRequest: (
     request: IncomingMessage,
-    callback: (err: string | null | undefined, success: boolean) => void
+    callback: (error: string | null | undefined, success: boolean) => void
   ): void => {
     const validOrigin = request.headers.origin === process.env.APP_CLIENT;
     callback(null, validOrigin);
