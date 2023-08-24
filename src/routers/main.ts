@@ -1,4 +1,5 @@
 import {Server, Socket} from 'socket.io';
+import {createErrorResponse, createSuccessResponse} from '@utils/response';
 import joi from 'joi';
 import logger from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
@@ -9,14 +10,17 @@ type AskChatbotReq = {
 
 type AskChatbotRes = {
   success: boolean;
-  error: {
-    status: number;
-    subStatus: number;
-    message: string;
-  } | null;
-  data: {
-    reply: string;
-  } | null;
+  error:
+    | {
+        code: number;
+        message: string;
+      }
+    | {};
+  data:
+    | {
+        reply: string;
+      }
+    | {};
 };
 
 type SubmitContactFormReq = {
@@ -28,12 +32,13 @@ type SubmitContactFormReq = {
 
 type SubmitContactFormRes = {
   success: boolean;
-  error: {
-    status: number;
-    subStatus: number;
-    message: string;
-  } | null;
-  data: {} | null;
+  error:
+    | {
+        code: number;
+        message: string;
+      }
+    | {};
+  data: {};
 };
 
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
@@ -55,31 +60,32 @@ const mainRouter = async (server: Server): Promise<void> => {
       ): Promise<void> => {
         mainLogger.info({request: request}, 'ask chatbot');
         const requestSchema = joi.object({
-          input: joi.string().min(1).max(160)
+          input: joi.string().min(1).max(160).required().messages({
+            'string.base': "4220101|'input' must be a string",
+            'string.empty': "4220102|'input' must not be empty",
+            'string.min':
+              "4220103|'input' must be between 1 and 160 characters",
+            'string.max':
+              "4220104|'input' must be between 1 and 160 characters",
+            'any.required': "40001|'input' is required"
+          })
         });
         const {value, error} = requestSchema.validate(request);
         if (error) {
-          const response: AskChatbotRes = {
-            success: false,
-            error: {
-              status: 400,
-              subStatus: 0,
-              message: 'bad request'
-            },
-            data: null
-          };
+          const response: AskChatbotRes = createErrorResponse({
+            code: error.message.split('|')[0],
+            message: error.message.split('|')[1]
+          });
           mainLogger.warn({response: response}, 'ask chatbot failed');
           callback(response);
         }
         const data = value as AskChatbotReq;
         const reply = await chatbot.process(sanitize(data.input).trim());
-        const response: AskChatbotRes = {
-          success: true,
-          error: null,
+        const response: AskChatbotRes = createSuccessResponse({
           data: {
             reply: reply.answer
           }
-        };
+        });
         mainLogger.info({response: response}, 'ask chatbot success');
         callback(response);
       }
@@ -91,6 +97,61 @@ const mainRouter = async (server: Server): Promise<void> => {
         callback: (response: SubmitContactFormRes) => void
       ): void => {
         mainLogger.info({request: request}, 'submit contact form');
+        const requestSchema = joi.object({
+          name: joi
+            .string()
+            .min(2)
+            .max(120)
+            .pattern(/^[a-zA-Z\s]*$/u)
+            .required()
+            .messages({
+              'string.base': "4220101|'name' must be a string",
+              'string.empty': "4220102|'name' must not be empty",
+              'string.min':
+                "4220103|'name' must be between 2 and 120 characters",
+              'string.max':
+                "4220104|'name' must be between 2 and 120 characters",
+              'string.pattern.base':
+                "4220105|'name' must only contain letters and spaces",
+              'any.required': "40001|'name' is required"
+            }),
+          email: joi.string().min(3).max(320).email().required().messages({
+            'string.base': "4220201|'email' must be a string",
+            'string.empty': "4220202|'email' must not be empty",
+            'string.min':
+              "4220203|'email' must be between 3 and 320 characters",
+            'string.max':
+              "4220204|'email' must be between 3 and 320 characters",
+            'string.email': "4220205|'email' must be in a valid format",
+            'any.required': "40002|'email' is required"
+          }),
+          message: joi.string().min(15).max(2000).required().messages({
+            'string.base': "4220301|'message' must be a string",
+            'string.empty': "4220302|'message' must not be empty",
+            'string.min':
+              "4220303|'message' must be between 15 and 2000 characters",
+            'string.max':
+              "4220304|'message' must be between 15 and 2000 characters",
+            'any.required': "40003|'message' is required"
+          }),
+          honeypot: joi.string().allow('').length(0).required().messages({
+            'string.base': "4220401|'honeypot' must be a string",
+            'string.length': "4220402|'honeypot' must be empty",
+            'any.required': "40004|'honeypot' is required"
+          })
+        });
+        const {error} = requestSchema.validate(request);
+        if (error) {
+          const response: SubmitContactFormRes = createErrorResponse({
+            code: error.message.split('|')[0],
+            message: error.message.split('|')[1]
+          });
+          mainLogger.warn({response: response}, 'submit contact form failed');
+          callback(response);
+        }
+        const response: SubmitContactFormRes = createSuccessResponse({});
+        mainLogger.info({response: response}, 'submit contact form success');
+        callback(response);
       }
     );
     socket.on('disconnect', (): void => {
@@ -99,5 +160,10 @@ const mainRouter = async (server: Server): Promise<void> => {
   });
 };
 
-export type {AskChatbotReq, AskChatbotRes};
+export type {
+  AskChatbotReq,
+  AskChatbotRes,
+  SubmitContactFormReq,
+  SubmitContactFormRes
+};
 export default mainRouter;
