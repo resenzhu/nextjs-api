@@ -33,7 +33,7 @@ export const createErrorResponse = ({
 export const createSuccessResponse = ({
   data = {}
 }: {
-  data: object;
+  data?: object;
 }): SuccessResponse => ({
   success: true,
   error: {},
