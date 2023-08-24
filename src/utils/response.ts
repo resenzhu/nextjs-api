@@ -4,12 +4,12 @@ export type ErrorResponse = {
     code: number;
     message: string;
   };
-  data: {};
+  data: Record<string, never>;
 };
 
 export type SuccessResponse = {
   success: true;
-  error: {};
+  error: Record<string, never>;
   data: object;
 };
 
@@ -22,7 +22,7 @@ export const createErrorResponse = ({
 }): ErrorResponse => ({
   success: false,
   error: {
-    code: parseInt(code ?? '400'),
+    code: parseInt(code ?? '400', 10),
     message:
       message ??
       'the server cannot process the request due to invalid syntax or malformed structure'

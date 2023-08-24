@@ -15,12 +15,8 @@ type AskChatbotRes = {
         code: number;
         message: string;
       }
-    | {};
-  data:
-    | {
-        reply: string;
-      }
-    | {};
+    | Record<string, never>;
+  data: object;
 };
 
 type SubmitContactFormReq = {
@@ -37,8 +33,8 @@ type SubmitContactFormRes = {
         code: number;
         message: string;
       }
-    | {};
-  data: {};
+    | Record<string, never>;
+  data: object;
 };
 
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
