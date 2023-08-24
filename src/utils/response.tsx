@@ -17,12 +17,12 @@ export const createErrorResponse = ({
   code,
   message
 }: {
-  code: number | undefined;
+  code: string | undefined;
   message: string | undefined;
 }): ErrorResponse => ({
   success: false,
   error: {
-    code: code ?? 400,
+    code: parseInt(code ?? '400'),
     message:
       message ??
       'the server cannot process the request due to invalid syntax or malformed structure'
