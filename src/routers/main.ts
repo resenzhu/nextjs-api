@@ -75,7 +75,7 @@ const mainRouter = async (server: Server): Promise<void> => {
             message: validationError.message.split('|')[1]
           });
           mainLogger.warn({response: response}, 'ask chatbot failed');
-          callback(response);
+          return callback(response);
         }
         const data = validatedValue as AskChatbotReq;
         const reply = await chatbot.process(sanitize(data.input).trim());
@@ -85,7 +85,7 @@ const mainRouter = async (server: Server): Promise<void> => {
           }
         });
         mainLogger.info({response: response}, 'ask chatbot success');
-        callback(response);
+        return callback(response);
       }
     );
     socket.on(
@@ -146,7 +146,7 @@ const mainRouter = async (server: Server): Promise<void> => {
             message: validationError.message.split('|')[1]
           });
           mainLogger.warn({response: response}, 'submit contact form failed');
-          callback(response);
+          return callback(response);
         }
         const data = validatedValue as SubmitContactFormReq;
         sendEmail({
@@ -160,7 +160,7 @@ const mainRouter = async (server: Server): Promise<void> => {
               {response: response},
               'submit contact form success'
             );
-            callback(response);
+            return callback(response);
           })
           .catch((error): void => {
             const response: SubmitContactFormRes = createErrorResponse({
@@ -171,8 +171,9 @@ const mainRouter = async (server: Server): Promise<void> => {
               {response: response, error: error},
               'submit contact form failed'
             );
-            callback(response);
+            return callback(response);
           });
+        return undefined;
       }
     );
     socket.on('disconnect', (): void => {
