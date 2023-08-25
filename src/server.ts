@@ -13,7 +13,10 @@ const ioServer = new Server({
   transports: ['websocket', 'polling'],
   serveClient: false,
   cors: {
-    origin: process.env.APP_CLIENT,
+    origin:
+      process.env.NODE_ENV === 'production'
+        ? process.env.APP_CLIENT
+        : undefined,
     optionsSuccessStatus: 200
   },
   allowRequest: (
@@ -21,7 +24,7 @@ const ioServer = new Server({
     callback: (error: string | null | undefined, success: boolean) => void
   ): void => {
     const validOrigin = request.headers.origin === process.env.APP_CLIENT;
-    callback(null, validOrigin);
+    callback(null, process.env.NODE_ENV === 'production' ? validOrigin : true);
   }
 });
 
