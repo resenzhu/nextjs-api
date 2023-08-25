@@ -35,6 +35,22 @@ const call = (
     });
 };
 
-call(mainSocket, 'ask-chatbot', {
-  input: 'hello'
-});
+const mainEvent: {
+  askChatbot: () => void;
+  submitContactForm: () => void;
+} = {
+  askChatbot: (): void => {
+    call(mainSocket, 'ask-chatbot', {
+      input: 'hello'
+    });
+  },
+  submitContactForm: (): void => {
+    call(mainSocket, 'submit-contact-form', {
+      name: 'User',
+      email: 'user@email.com',
+      message: 'Hello!'
+    });
+  }
+};
+
+mainEvent.askChatbot();
