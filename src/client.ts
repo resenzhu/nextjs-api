@@ -1,3 +1,5 @@
+import {names, uniqueNamesGenerator} from 'unique-names-generator';
+import {LoremIpsum} from 'lorem-ipsum';
 import {Manager} from 'socket.io-client';
 import {config} from 'dotenv';
 import logger from '@utils/logger';
@@ -45,12 +47,18 @@ const mainEvent: {
     });
   },
   submitContactForm: (): void => {
+    const name = uniqueNamesGenerator({
+      dictionaries: [names, names, names],
+      length: Math.floor(Math.random() * 3 + 1),
+      separator: ' '
+    });
     call(mainSocket, 'submit-contact-form', {
-      name: 'User',
-      email: 'user@email.com',
-      message: 'Hello!'
+      name: name,
+      email: `${name.replaceAll(' ', '.').toLowerCase()}@email.com`,
+      message: new LoremIpsum().generateParagraphs(1),
+      honeypot: ''
     });
   }
 };
 
-mainEvent.askChatbot();
+mainEvent.submitContactForm();
