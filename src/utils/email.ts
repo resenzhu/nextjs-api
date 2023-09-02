@@ -8,8 +8,8 @@ export const sendEmail = ({
   name: string;
   email: string;
   message: string;
-}): Promise<string> =>
-  new Promise<string>((resolve, reject): void => {
+}): Promise<string | void> =>
+  new Promise<string | void>((resolve, reject): void => {
     const mailjet = new Client({
       apiKey: process.env.MAILJET_KEY_API,
       apiSecret: process.env.MAILJET_KEY_SECRET
@@ -37,7 +37,7 @@ export const sendEmail = ({
       .post('send', {version: 'v3.1'})
       .request(mailjetBody)
       .then((): void => {
-        resolve('OK');
+        resolve();
       })
       .catch((error): void => {
         reject(error.ErrorMessage);
