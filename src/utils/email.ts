@@ -9,7 +9,7 @@ export const sendEmail = ({
   email: string;
   message: string;
 }): Promise<string> =>
-  new Promise((resolve, reject): void => {
+  new Promise<string>((resolve, reject): void => {
     const mailjet = new Client({
       apiKey: process.env.MAILJET_KEY_API,
       apiSecret: process.env.MAILJET_KEY_SECRET
