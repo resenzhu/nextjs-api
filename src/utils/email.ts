@@ -1,4 +1,4 @@
-import Mailjet from 'node-mailjet';
+import {Client, type SendEmailV3_1 as SendEmailV31} from 'node-mailjet';
 
 export const sendEmail = ({
   name,
@@ -10,31 +10,32 @@ export const sendEmail = ({
   message: string;
 }): Promise<string> =>
   new Promise((resolve, reject): void => {
-    const mailjet = Mailjet.apiConnect(
-      process.env.MAILJET_KEY_API,
-      process.env.MAILJET_KEY_SECRET
-    );
-    mailjet
-      .post('send', {version: 'v3.1'})
-      .request({
-        Messages: [
-          {
-            From: {
+    const mailjet = new Client({
+      apiKey: process.env.MAILJET_KEY_API,
+      apiSecret: process.env.MAILJET_KEY_SECRET
+    });
+    const mailjetBody: SendEmailV31.Body = {
+      Messages: [
+        {
+          From: {
+            Name: process.env.MAILJET_USER_NAME,
+            Email: process.env.MAILJET_USER_EMAIL
+          },
+          To: [
+            {
               Name: process.env.MAILJET_USER_NAME,
               Email: process.env.MAILJET_USER_EMAIL
-            },
-            To: [
-              {
-                Name: process.env.MAILJET_USER_NAME,
-                Email: process.env.MAILJET_USER_EMAIL
-              }
-            ],
-            Subject: `Message from ${name} <${email}>`,
-            TextPart: message.replaceAll('\n', '\\n'),
-            HTMLPart: message.replaceAll('\n', '<br />')
-          }
-        ]
-      })
+            }
+          ],
+          Subject: `Message from ${name} <${email}>`,
+          TextPart: message.replaceAll('\n', '\\n'),
+          HTMLPart: message.replaceAll('\n', '<br />')
+        }
+      ]
+    };
+    mailjet
+      .post('send', {version: 'v3.1'})
+      .request(mailjetBody)
       .then((): void => {
         resolve('OK');
       })
