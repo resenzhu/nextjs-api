@@ -40,6 +40,6 @@ export const sendEmail = ({
         resolve();
       })
       .catch((error): void => {
-        reject(error.ErrorMessage);
+        reject(error.ErrorMessage as string);
       });
   });
