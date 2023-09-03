@@ -186,27 +186,27 @@ const mainRouter = async (server: Server): Promise<void> => {
                 );
                 return callback(response);
               })
-              .catch((error): void => {
+              .catch((error: Error): void => {
                 const response: SubmitContactFormRes = createErrorResponse({
                   code: '500',
                   message:
                     'an error occured while attempting to send the email.'
                 });
                 mainLogger.warn(
-                  {response: response, error: error},
+                  {response: response, error: error.message},
                   'submit contact form failed'
                 );
                 return callback(response);
               });
             return undefined;
           })
-          .catch((error): void => {
+          .catch((error: Error): void => {
             const response: SubmitContactFormRes = createErrorResponse({
               code: '500',
               message: 'an error occured while attempting to verify captcha.'
             });
             mainLogger.warn(
-              {response: response, error: error},
+              {response: response, error: error.message},
               'submit contact form failed'
             );
             return callback(response);

@@ -16,8 +16,8 @@ export const verifyCaptcha = ({
       )
       .then((response: AxiosResponse): void => {
         if (!response.data.success) {
-          reject(response.data['error-codes'][0] as string);
+          reject(new Error(response.data['error-codes'][0]));
         }
-        resolve(response.data.score as number);
+        resolve(response.data.score);
       });
   });
