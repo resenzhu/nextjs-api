@@ -4,6 +4,7 @@ import joi from 'joi';
 import logger from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
+import {verifyCaptcha} from '@utils/recaptcha';
 
 type AskChatbotReq = {
   input: string;
@@ -25,6 +26,7 @@ type SubmitContactFormReq = {
   email: string;
   message: string;
   honeypot: string;
+  token: string;
 };
 
 type SubmitContactFormRes = {
@@ -136,6 +138,11 @@ const mainRouter = async (server: Server): Promise<void> => {
             'string.base': "4220401|'honeypot' must be a string.",
             'string.length': "4220402|'honeypot' must be empty.",
             'any.required': "40004|'honeypot' is required."
+          }),
+          token: joi.string().required().messages({
+            'string.base': "4220501|'token' must be a string.",
+            'string.empty': "4220502|'token' must not be empty.",
+            'any.required': "40005|'token' is required."
           })
         });
         const {value: validatedValue, error: validationError} =
@@ -149,23 +156,54 @@ const mainRouter = async (server: Server): Promise<void> => {
           return callback(response);
         }
         const data = validatedValue as SubmitContactFormReq;
-        sendEmail({
-          name: sanitize(data.name).trim(),
-          email: sanitize(data.email).trim(),
-          message: sanitize(data.message).trim()
+        verifyCaptcha({
+          token: sanitize(data.token).trim()
         })
-          .then((): void => {
-            const response: SubmitContactFormRes = createSuccessResponse({});
-            mainLogger.info(
-              {response: response},
-              'submit contact form success'
-            );
-            return callback(response);
+          .then((score): void => {
+            if (Number(score) <= 0.5) {
+              const response: SubmitContactFormRes = createErrorResponse({
+                code: '403',
+                message: 'access denied for bot form submission.'
+              });
+              mainLogger.warn(
+                {response: response},
+                'submit contact form failed'
+              );
+              return callback(response);
+            }
+            sendEmail({
+              name: sanitize(data.name).trim(),
+              email: sanitize(data.email).trim(),
+              message: sanitize(data.message).trim()
+            })
+              .then((): void => {
+                const response: SubmitContactFormRes = createSuccessResponse(
+                  {}
+                );
+                mainLogger.info(
+                  {response: response},
+                  'submit contact form success'
+                );
+                return callback(response);
+              })
+              .catch((error): void => {
+                const response: SubmitContactFormRes = createErrorResponse({
+                  code: '500',
+                  message:
+                    'an error occured while attempting to send the email.'
+                });
+                mainLogger.warn(
+                  {response: response, error: error},
+                  'submit contact form failed'
+                );
+                return callback(response);
+              });
+            return undefined;
           })
           .catch((error): void => {
             const response: SubmitContactFormRes = createErrorResponse({
               code: '500',
-              message: 'an error occured while attempting to send the email.'
+              message: 'an error occured while attempting to verify captcha.'
             });
             mainLogger.warn(
               {response: response, error: error},
