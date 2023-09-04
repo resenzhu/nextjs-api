@@ -1,6 +1,6 @@
 import axios, {type AxiosResponse} from 'axios';
 
-export const verifyCaptcha = ({
+export const verifyCaptchaV3 = ({
   token
 }: {
   token: string;
@@ -10,7 +10,7 @@ export const verifyCaptcha = ({
       .post(
         'https://www.google.com/recaptcha/api/siteverify',
         new URLSearchParams({
-          secret: process.env.GOOGLE_RECAPTCHA_KEY,
+          secret: process.env.GOOGLE_RECAPTCHA_KEY_V3,
           response: token
         })
       )

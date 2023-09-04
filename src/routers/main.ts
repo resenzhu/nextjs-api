@@ -4,7 +4,7 @@ import joi from 'joi';
 import logger from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
-import {verifyCaptcha} from '@utils/recaptcha';
+import {verifyCaptchaV3} from '@utils/recaptcha';
 
 type AskChatbotReq = {
   input: string;
@@ -156,7 +156,7 @@ const mainRouter = async (server: Server): Promise<void> => {
           return callback(response);
         }
         const data = validatedValue as SubmitContactFormReq;
-        verifyCaptcha({
+        verifyCaptchaV3({
           token: sanitize(data.token).trim()
         })
           .then((score): void => {
