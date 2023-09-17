@@ -172,8 +172,17 @@ const mainRouter = async (server: Server): Promise<void> => {
               return callback(response);
             }
             sendEmail({
-              name: sanitize(data.name).trim(),
-              email: sanitize(data.email).trim(),
+              name: sanitize(data.name)
+                .trim()
+                .split(' ')
+                .map(
+                  (word): string =>
+                    `${word.charAt(0).toUpperCase()}${word
+                      .slice(1)
+                      .toLowerCase()}`
+                )
+                .join(' '),
+              email: sanitize(data.email).trim().toLowerCase(),
               message: sanitize(data.message).trim()
             })
               .then((): void => {
