@@ -1,7 +1,7 @@
 import type {Server, Socket} from 'socket.io';
 import {createErrorResponse, createSuccessResponse} from '@utils/response';
 import joi from 'joi';
-import logger from '@utils/logger';
+import {logger} from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
 import {verifyCaptchaV3} from '@utils/recaptcha';

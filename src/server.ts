@@ -1,7 +1,7 @@
 import {type IncomingMessage, createServer} from 'http';
 import {Server} from 'socket.io';
 import {config} from 'dotenv';
-import logger from '@utils/logger';
+import {logger} from '@utils/logger';
 import router from '@routers/index';
 
 if (process.env.NODE_ENV !== 'production') {
