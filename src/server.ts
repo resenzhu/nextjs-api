@@ -1,4 +1,4 @@
-import {IncomingMessage, createServer} from 'http';
+import {type IncomingMessage, createServer} from 'http';
 import {Server} from 'socket.io';
 import {config} from 'dotenv';
 import logger from '@utils/logger';
