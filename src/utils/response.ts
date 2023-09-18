@@ -13,6 +13,17 @@ export type SuccessResponse = {
   data: object;
 };
 
+export type ClientResponse = {
+  success: boolean;
+  error:
+    | {
+        code: number;
+        message: string;
+      }
+    | Record<string, never>;
+  data: object;
+};
+
 export const createErrorResponse = ({
   code,
   message
