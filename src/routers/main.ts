@@ -1,5 +1,9 @@
+import {
+  type ClientResponse,
+  createErrorResponse,
+  createSuccessResponse
+} from '@utils/response';
 import type {Server, Socket} from 'socket.io';
-import {createErrorResponse, createSuccessResponse} from '@utils/response';
 import joi from 'joi';
 import {logger} from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
@@ -10,34 +14,12 @@ type AskChatbotReq = {
   input: string;
 };
 
-type AskChatbotRes = {
-  success: boolean;
-  error:
-    | {
-        code: number;
-        message: string;
-      }
-    | Record<string, never>;
-  data: object;
-};
-
 type SubmitContactFormReq = {
   name: string;
   email: string;
   message: string;
   honeypot: string;
   token: string;
-};
-
-type SubmitContactFormRes = {
-  success: boolean;
-  error:
-    | {
-        code: number;
-        message: string;
-      }
-    | Record<string, never>;
-  data: object;
 };
 
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
@@ -55,7 +37,7 @@ const mainRouter = async (server: Server): Promise<void> => {
       'ask-chatbot',
       async (
         request: AskChatbotReq,
-        callback: (response: AskChatbotRes) => void
+        callback: (response: ClientResponse) => void
       ): Promise<void> => {
         mainLogger.info({request: request}, 'ask chatbot');
         const requestSchema = joi.object({
@@ -72,7 +54,7 @@ const mainRouter = async (server: Server): Promise<void> => {
         const {value: validatedValue, error: validationError} =
           requestSchema.validate(request);
         if (validationError) {
-          const response: AskChatbotRes = createErrorResponse({
+          const response: ClientResponse = createErrorResponse({
             code: validationError.message.split('|')[0],
             message: validationError.message.split('|')[1]
           });
@@ -81,7 +63,7 @@ const mainRouter = async (server: Server): Promise<void> => {
         }
         const data = validatedValue as AskChatbotReq;
         const reply = await chatbot.process(sanitize(data.input).trim());
-        const response: AskChatbotRes = createSuccessResponse({
+        const response: ClientResponse = createSuccessResponse({
           data: {
             reply: reply.answer
           }
@@ -94,7 +76,7 @@ const mainRouter = async (server: Server): Promise<void> => {
       'submit-contact-form',
       (
         request: SubmitContactFormReq,
-        callback: (response: SubmitContactFormRes) => void
+        callback: (response: ClientResponse) => void
       ): void => {
         mainLogger.info({request: request}, 'submit contact form');
         const requestSchema = joi.object({
@@ -148,7 +130,7 @@ const mainRouter = async (server: Server): Promise<void> => {
         const {value: validatedValue, error: validationError} =
           requestSchema.validate(request);
         if (validationError) {
-          const response: SubmitContactFormRes = createErrorResponse({
+          const response: ClientResponse = createErrorResponse({
             code: validationError.message.split('|')[0],
             message: validationError.message.split('|')[1]
           });
@@ -161,7 +143,7 @@ const mainRouter = async (server: Server): Promise<void> => {
         })
           .then((score): void => {
             if (Number(score) <= 0.5) {
-              const response: SubmitContactFormRes = createErrorResponse({
+              const response: ClientResponse = createErrorResponse({
                 code: '403',
                 message: 'access denied for bot form submission.'
               });
@@ -186,9 +168,7 @@ const mainRouter = async (server: Server): Promise<void> => {
               message: sanitize(data.message).trim()
             })
               .then((): void => {
-                const response: SubmitContactFormRes = createSuccessResponse(
-                  {}
-                );
+                const response: ClientResponse = createSuccessResponse({});
                 mainLogger.info(
                   {response: response},
                   'submit contact form success'
@@ -196,7 +176,7 @@ const mainRouter = async (server: Server): Promise<void> => {
                 return callback(response);
               })
               .catch((error: Error): void => {
-                const response: SubmitContactFormRes = createErrorResponse({
+                const response: ClientResponse = createErrorResponse({
                   code: '500',
                   message:
                     'an error occured while attempting to send the email.'
@@ -210,7 +190,7 @@ const mainRouter = async (server: Server): Promise<void> => {
             return undefined;
           })
           .catch((error: Error): void => {
-            const response: SubmitContactFormRes = createErrorResponse({
+            const response: ClientResponse = createErrorResponse({
               code: '500',
               message: 'an error occured while attempting to verify captcha.'
             });
@@ -229,10 +209,5 @@ const mainRouter = async (server: Server): Promise<void> => {
   });
 };
 
-export type {
-  AskChatbotReq,
-  AskChatbotRes,
-  SubmitContactFormReq,
-  SubmitContactFormRes
-};
+export type {AskChatbotReq, SubmitContactFormReq};
 export default mainRouter;
