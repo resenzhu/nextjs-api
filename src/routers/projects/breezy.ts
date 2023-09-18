@@ -5,7 +5,7 @@ import {
 } from '@utils/response';
 import type {Server, Socket} from 'socket.io';
 import joi from 'joi';
-import {logger} from '@utils/logger';
+import logger from '@utils/logger';
 
 type SignUpReq = {
   username: string;

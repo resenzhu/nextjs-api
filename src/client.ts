@@ -2,7 +2,7 @@ import {names, uniqueNamesGenerator} from 'unique-names-generator';
 import {LoremIpsum} from 'lorem-ipsum';
 import {Manager} from 'socket.io-client';
 import {config} from 'dotenv';
-import {logger} from '@utils/logger';
+import logger from '@utils/logger';
 
 if (process.env.NODE_ENV === 'production') {
   logger.error(
