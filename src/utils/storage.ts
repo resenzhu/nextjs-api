@@ -1,5 +1,5 @@
 import {init} from 'node-persist';
 
-const storage = init({dir: 'storage'});
+const breezyStorage = init({dir: 'storage/project/breezy'});
 
-export default storage;
+export {breezyStorage};
