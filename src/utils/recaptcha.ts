@@ -6,8 +6,8 @@ export const verifyReCaptcha = ({
 }: {
   version: 2 | 3;
   token: string;
-}): Promise<number | string> =>
-  new Promise<number | string>((resolve, reject): void => {
+}): Promise<boolean | number | string> =>
+  new Promise<boolean | number | string>((resolve, reject): void => {
     axios
       .post(
         'https://www.google.com/recaptcha/api/siteverify',
@@ -23,6 +23,6 @@ export const verifyReCaptcha = ({
         if (!response.data.success) {
           reject(new Error(response.data['error-codes'][0]));
         }
-        resolve(response.data.score);
+        resolve(version === 2 ? response.data.success : response.data.score);
       });
   });

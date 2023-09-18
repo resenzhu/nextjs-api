@@ -1,11 +1,12 @@
 import {
   type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse
+  createErrorResponse
 } from '@utils/response';
 import type {Server, Socket} from 'socket.io';
 import joi from 'joi';
 import logger from '@utils/logger';
+import {sanitize} from 'isomorphic-dompurify';
+import {verifyReCaptcha} from '@utils/recaptcha';
 
 type SignUpReq = {
   username: string;
@@ -96,13 +97,15 @@ const breezyRouter = (server: Server): void => {
           return callback(response);
         }
         const data = validatedValue as SignUpReq;
-        const response: ClientResponse = createSuccessResponse({
-          data: {
-            token: data.token
-          }
-        });
-        breezyLogger.info({response: response}, 'signup success');
-        return callback(response);
+        verifyReCaptcha({
+          version: 2,
+          token: sanitize(data.token).trim()
+        }).then((score): void => {
+          console.log(score);
+        })
+        .catch((error: Error): void => {
+          console.log(error);
+        });;
       }
     );
     socket.on('disconnect', (): void => {
