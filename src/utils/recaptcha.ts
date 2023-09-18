@@ -1,8 +1,10 @@
 import axios, {type AxiosResponse} from 'axios';
 
-export const verifyCaptchaV3 = ({
+export const verifyReCaptcha = ({
+  version,
   token
 }: {
+  version: 2 | 3;
   token: string;
 }): Promise<number | string> =>
   new Promise<number | string>((resolve, reject): void => {
@@ -10,7 +12,10 @@ export const verifyCaptchaV3 = ({
       .post(
         'https://www.google.com/recaptcha/api/siteverify',
         new URLSearchParams({
-          secret: process.env.GOOGLE_RECAPTCHA_KEY_V3,
+          secret:
+            version === 2
+              ? process.env.GOOGLE_RECAPTCHA_KEY_V2_CHECKBOX
+              : process.env.GOOGLE_RECAPTCHA_KEY_V3,
           response: token
         })
       )
