@@ -1,3 +1,8 @@
+import {
+  type ClientResponse,
+  createErrorResponse,
+  createSuccessResponse
+} from '@utils/response';
 import type {Server, Socket} from 'socket.io';
 import joi from 'joi';
 import {logger} from '@utils/logger';
@@ -10,17 +15,6 @@ type SignUpReq = {
   token: string;
 };
 
-type SignUpRes = {
-  success: boolean;
-  error:
-    | {
-        code: number;
-        message: string;
-      }
-    | Record<string, never>;
-  data: object;
-};
-
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
   breezy.on('connection', (socket: Socket): void => {
@@ -31,7 +25,10 @@ const breezyRouter = (server: Server): void => {
     breezyLogger.info('socket connected');
     socket.on(
       'signup',
-      (request: SignUpReq, callback: (response: SignUpRes) => void): void => {
+      (
+        request: SignUpReq,
+        callback: (response: ClientResponse) => void
+      ): void => {
         breezyLogger.info({request: request}, 'signup');
         const requestSchema = joi.object({
           username: joi
@@ -88,6 +85,24 @@ const breezyRouter = (server: Server): void => {
             'any.required': "40005|'token' is required."
           })
         });
+        const {value: validatedValue, error: validationError} =
+          requestSchema.validate(request);
+        if (validationError) {
+          const response: ClientResponse = createErrorResponse({
+            code: validationError.message.split('|')[0],
+            message: validationError.message.split('|')[1]
+          });
+          breezyLogger.warn({response: response}, 'signup failed');
+          return callback(response);
+        }
+        const data = validatedValue as SignUpReq;
+        const response: ClientResponse = createSuccessResponse({
+          data: {
+            token: data.token
+          }
+        });
+        breezyLogger.info({response: response}, 'signup success');
+        return callback(response);
       }
     );
     socket.on('disconnect', (): void => {
