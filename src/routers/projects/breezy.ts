@@ -62,16 +62,16 @@ const breezyRouter = (server: Server): void => {
           displayName: joi
             .string()
             .min(2)
-            .max(120)
+            .max(25)
             .pattern(/^[a-zA-Z\s]*$/u)
             .required()
             .messages({
               'string.base': "4220101|'displayName' must be a string.",
               'string.empty': "4220102|'displayName' must not be empty.",
               'string.min':
-                "4220103|'displayName' must be between 2 and 120 characters.",
+                "4220103|'displayName' must be between 2 and 25 characters.",
               'string.max':
-                "4220104|'displayName' must be between 2 and 120 characters.",
+                "4220104|'displayName' must be between 2 and 25 characters.",
               'string.pattern.base':
                 "4220105|'displayName' must only contain letters and spaces.",
               'any.required': "40001|'displayName' is required."
