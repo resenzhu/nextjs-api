@@ -1,8 +1,9 @@
-import {type ClientResponse, createErrorResponse} from '@utils/response';
+import {type ClientResponse, createErrorResponse, createSuccessResponse} from '@utils/response';
 import type {Server, Socket} from 'socket.io';
-import {type WriteFileResult, setItem} from 'node-persist';
+import {type WriteFileResult, getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import {breezyStorage} from '@utils/storage';
+import {hash} from 'bcrypt';
 import joi from 'joi';
 import logger from '@utils/logger';
 import {nanoid} from 'nanoid';
@@ -120,29 +121,43 @@ const breezyRouter = (server: Server): void => {
               breezyLogger.warn({response: response}, 'signup failed');
               return callback(response);
             }
-            const newUser: User = {
-              id: nanoid(),
-              username: sanitize(data.username).trim().toLowerCase(),
-              displayName: sanitize(data.displayName).trim(),
-              password: data.password,
-              createdDate:
-                DateTime.utc().toISO() ?? new Date(Date.now()).toISOString(),
-              modifiedDate:
-                DateTime.utc().toISO() ?? new Date(Date.now()).toISOString()
-            };
-            breezyStorage
-              .then((): Promise<WriteFileResult> => setItem('users', newUser))
-              .catch((error: Error): void => {
-                const response: ClientResponse = createErrorResponse({
-                  code: '500',
-                  message: 'an error occured while storing data on the server.'
+            breezyStorage.then((): Promise<User[]> => getItem('users')).then((users): void => {
+              if (!users) {
+                hash(data.password, 10).then((hash: string): void => {
+                  const newUser: User = {
+                    id: nanoid(),
+                    username: sanitize(data.username).trim().toLowerCase(),
+                    displayName: sanitize(data.displayName).trim(),
+                    password: hash,
+                    createdDate:
+                      DateTime.utc().toISO() ?? new Date(Date.now()).toISOString(),
+                    modifiedDate:
+                      DateTime.utc().toISO() ?? new Date(Date.now()).toISOString()
+                  };
+                  breezyStorage
+                    .then((): Promise<WriteFileResult> => setItem('users', newUser))
+                    .then((): void => {
+                      const response: ClientResponse = createSuccessResponse({});
+                      breezyLogger.info(
+                        {response: response},
+                        'signup success'
+                      );
+                      return callback(response);
+                    })
+                    .catch((error: Error): void => {
+                      const response: ClientResponse = createErrorResponse({
+                        code: '500',
+                        message: 'an error occured while storing data on the server.'
+                      });
+                      breezyLogger.warn(
+                        {response: response, error: error.message},
+                        'signup failed'
+                      );
+                      return callback(response);
+                    });
                 });
-                breezyLogger.warn(
-                  {response: response, error: error.message},
-                  'signup failed'
-                );
-                return callback(response);
-              });
+              }
+            });
             return undefined;
           })
           .catch((error: Error): void => {
