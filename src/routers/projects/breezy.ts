@@ -1,7 +1,4 @@
-import {
-  type ClientResponse,
-  createErrorResponse
-} from '@utils/response';
+import {type ClientResponse, createErrorResponse} from '@utils/response';
 import type {Server, Socket} from 'socket.io';
 import joi from 'joi';
 import logger from '@utils/logger';
@@ -100,12 +97,18 @@ const breezyRouter = (server: Server): void => {
         verifyReCaptcha({
           version: 2,
           token: sanitize(data.token).trim()
-        }).then((score): void => {
-          console.log(score);
-        })
-        .catch((error: Error): void => {
-          console.log(error);
-        });;
+        }).catch((error: Error): void => {
+          const response: ClientResponse = createErrorResponse({
+            code: '500',
+            message: 'an error occured while attempting to verify captcha.'
+          });
+          breezyLogger.warn(
+            {response: response, error: error.message},
+            'signup failed'
+          );
+          return callback(response);
+        });
+        return undefined;
       }
     );
     socket.on('disconnect', (): void => {
