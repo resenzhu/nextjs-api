@@ -97,17 +97,28 @@ const breezyRouter = (server: Server): void => {
         verifyReCaptcha({
           version: 2,
           token: sanitize(data.token).trim()
-        }).catch((error: Error): void => {
-          const response: ClientResponse = createErrorResponse({
-            code: '500',
-            message: 'an error occured while attempting to verify captcha.'
+        })
+          .then((success): void => {
+            if (!Boolean(success)) {
+              const response: ClientResponse = createErrorResponse({
+                code: '403',
+                message: 'access denied for bot form submission.'
+              });
+              breezyLogger.warn({response: response}, 'signup failed');
+              return callback(response);
+            }
+          })
+          .catch((error: Error): void => {
+            const response: ClientResponse = createErrorResponse({
+              code: '500',
+              message: 'an error occured while attempting to verify captcha.'
+            });
+            breezyLogger.warn(
+              {response: response, error: error.message},
+              'signup failed'
+            );
+            return callback(response);
           });
-          breezyLogger.warn(
-            {response: response, error: error.message},
-            'signup failed'
-          );
-          return callback(response);
-        });
         return undefined;
       }
     );
