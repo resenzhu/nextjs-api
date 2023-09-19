@@ -152,6 +152,7 @@ const breezyRouter = (server: Server): void => {
                 );
                 return callback(response);
               });
+            return undefined;
           })
           .catch((error: Error): void => {
             const response: ClientResponse = createErrorResponse({
