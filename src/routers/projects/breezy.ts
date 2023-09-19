@@ -123,16 +123,7 @@ const breezyRouter = (server: Server): void => {
             const newUser: User = {
               id: nanoid(),
               username: sanitize(data.username).trim().toLowerCase(),
-              displayName: sanitize(data.displayName)
-                .trim()
-                .split(' ')
-                .map(
-                  (word): string =>
-                    `${word.charAt(0).toUpperCase()}${word
-                      .slice(1)
-                      .toLowerCase()}`
-                )
-                .join(' '),
+              displayName: sanitize(data.displayName).trim(),
               password: data.password,
               createdDate:
                 DateTime.utc().toISO() ?? new Date(Date.now()).toISOString(),
