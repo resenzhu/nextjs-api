@@ -4,6 +4,7 @@ declare namespace NodeJS {
     APP_CLIENT: string;
     GOOGLE_RECAPTCHA_KEY_V2_CHECKBOX: string;
     GOOGLE_RECAPTCHA_KEY_V3: string;
+    JWT_KEY: string;
     MAILJET_KEY_API: string;
     MAILJET_KEY_SECRET: string;
     MAILJET_USER_NAME: string;
