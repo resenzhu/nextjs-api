@@ -61,8 +61,12 @@ const mainRouter = async (server: Server): Promise<void> => {
           mainLogger.warn({response: response}, 'ask chatbot failed');
           return callback(response);
         }
-        const data = validatedValue as AskChatbotReq;
-        const reply = await chatbot.process(sanitize(data.input).trim());
+        let data = validatedValue as AskChatbotReq;
+        data = {
+          ...data,
+          input: sanitize(data.input).trim()
+        };
+        const reply = await chatbot.process(data.input);
         const response: ClientResponse = createSuccessResponse({
           data: {
             reply: reply.answer
@@ -137,10 +141,24 @@ const mainRouter = async (server: Server): Promise<void> => {
           mainLogger.warn({response: response}, 'submit contact form failed');
           return callback(response);
         }
-        const data = validatedValue as SubmitContactFormReq;
+        let data = validatedValue as SubmitContactFormReq;
+        data = {
+          ...data,
+          name: sanitize(data.name)
+            .trim()
+            .split(' ')
+            .map(
+              (word): string =>
+                `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`
+            )
+            .join(' '),
+          email: sanitize(data.email).trim().toLowerCase(),
+          message: sanitize(data.message).trim(),
+          token: sanitize(data.token).trim()
+        };
         verifyReCaptcha({
           version: 3,
-          token: sanitize(data.token).trim()
+          token: data.token
         })
           .then((score): void => {
             if (Number(score) <= 0.5) {
@@ -155,18 +173,9 @@ const mainRouter = async (server: Server): Promise<void> => {
               return callback(response);
             }
             sendEmail({
-              name: sanitize(data.name)
-                .trim()
-                .split(' ')
-                .map(
-                  (word): string =>
-                    `${word.charAt(0).toUpperCase()}${word
-                      .slice(1)
-                      .toLowerCase()}`
-                )
-                .join(' '),
-              email: sanitize(data.email).trim().toLowerCase(),
-              message: sanitize(data.message).trim()
+              name: data.name,
+              email: data.email,
+              message: data.message
             })
               .then((): void => {
                 const response: ClientResponse = createSuccessResponse({});
