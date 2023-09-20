@@ -12,6 +12,7 @@ import joi from 'joi';
 import logger from '@utils/logger';
 import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
+import {sign} from 'jsonwebtoken';
 import {verifyReCaptcha} from '@utils/recaptcha';
 
 type SignUpReq = {
@@ -111,10 +112,16 @@ const breezyRouter = (server: Server): void => {
           breezyLogger.warn({response: response}, 'signup failed');
           return callback(response);
         }
-        const data = validatedValue as SignUpReq;
+        let data = validatedValue as SignUpReq;
+        data = {
+          ...data,
+          username: sanitize(data.username).trim().toLowerCase(),
+          displayName: sanitize(data.displayName).trim(),
+          token: sanitize(data.token).trim()
+        };
         verifyReCaptcha({
           version: 2,
-          token: sanitize(data.token).trim()
+          token: data.token
         })
           .then((success): void => {
             if (!success) {
@@ -127,36 +134,53 @@ const breezyRouter = (server: Server): void => {
             }
             breezyStorage
               .then((): void => {
-                getItem('users').then((users): void => {
-                  if (!users) {
-                    hash(data.password, 10).then(
-                      (hashedPassword: string): void => {
-                        const newUser: User = {
-                          id: nanoid(),
-                          username: sanitize(data.username)
-                            .trim()
-                            .toLowerCase(),
-                          displayName: sanitize(data.displayName).trim(),
-                          password: hashedPassword,
-                          createdDate:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString(),
-                          modifiedDate:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString()
-                        };
-                        setItem('users', [newUser]).then((): void => {
-                          const response: ClientResponse =
-                            createSuccessResponse({});
-                          breezyLogger.info(
-                            {response: response},
-                            'signup success'
-                          );
-                          return callback(response);
-                        });
-                      }
+                getItem('users').then((users: User[]): void => {
+                  const exists: boolean =
+                    users &&
+                    users.some(
+                      (user): boolean => user.username === data.username
                     );
+                  if (exists) {
+                    const response: ClientResponse = createErrorResponse({
+                      code: '409',
+                      message: 'username already exists.'
+                    });
+                    breezyLogger.warn({response: response}, 'signup failed');
+                    return callback(response);
                   }
+                  hash(data.password, 10).then(
+                    (hashedPassword: string): void => {
+                      const newUser: User = {
+                        id: nanoid(),
+                        username: data.username,
+                        displayName: data.displayName,
+                        password: hashedPassword,
+                        createdDate:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString(),
+                        modifiedDate:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString()
+                      };
+                      setItem('users', [...users, newUser]).then((): void => {
+                        const response: ClientResponse = createSuccessResponse({
+                          data: {
+                            token: sign({id: newUser.id}, process.env.JWT_KEY, {
+                              issuer: 'resen',
+                              subject: 'breezy-login-session',
+                              expiresIn: '2d'
+                            })
+                          }
+                        });
+                        breezyLogger.info(
+                          {response: response},
+                          'signup success'
+                        );
+                        return callback(response);
+                      });
+                    }
+                  );
+                  return undefined;
                 });
               })
               .catch((error: Error): void => {
