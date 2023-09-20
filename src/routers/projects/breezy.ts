@@ -173,7 +173,7 @@ const breezyRouter = (server: Server): void => {
                                   {
                                     issuer: 'resen',
                                     subject: newUser.username,
-                                    expiresIn: '2d'
+                                    expiresIn: '2w'
                                   }
                                 )
                               }
