@@ -162,22 +162,29 @@ const breezyRouter = (server: Server): void => {
                           DateTime.utc().toISO() ??
                           new Date(Date.now()).toISOString()
                       };
-                      setItem('users', [...users, newUser]).then((): void => {
-                        const response: ClientResponse = createSuccessResponse({
-                          data: {
-                            token: sign({id: newUser.id}, process.env.JWT_KEY, {
-                              issuer: 'resen',
-                              subject: 'breezy-login-session',
-                              expiresIn: '2d'
-                            })
-                          }
-                        });
-                        breezyLogger.info(
-                          {response: response},
-                          'signup success'
-                        );
-                        return callback(response);
-                      });
+                      setItem('users', [...(users ?? []), newUser]).then(
+                        (): void => {
+                          const response: ClientResponse =
+                            createSuccessResponse({
+                              data: {
+                                token: sign(
+                                  {id: newUser.id},
+                                  process.env.JWT_KEY,
+                                  {
+                                    issuer: 'resen',
+                                    subject: newUser.username,
+                                    expiresIn: '2d'
+                                  }
+                                )
+                              }
+                            });
+                          breezyLogger.info(
+                            {response: response},
+                            'signup success'
+                          );
+                          return callback(response);
+                        }
+                      );
                     }
                   );
                   return undefined;
