@@ -32,6 +32,14 @@ type User = {
   modifiedDate: string;
 };
 
+type Session = {
+  id: string;
+  userId: string;
+  socket: string | null;
+  status: 'online' | 'away' | 'offline';
+  lastOnline: string;
+};
+
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
   breezy.on('connection', (socket: Socket): void => {
@@ -148,45 +156,61 @@ const breezyRouter = (server: Server): void => {
                     breezyLogger.warn({response: response}, 'signup failed');
                     return callback(response);
                   }
-                  hash(data.password, 10).then(
-                    (hashedPassword: string): void => {
-                      const newUser: User = {
-                        id: nanoid(),
-                        username: data.username,
-                        displayName: data.displayName,
-                        password: hashedPassword,
-                        createdDate:
-                          DateTime.utc().toISO() ??
-                          new Date(Date.now()).toISOString(),
-                        modifiedDate:
-                          DateTime.utc().toISO() ??
-                          new Date(Date.now()).toISOString()
-                      };
-                      setItem('users', [...(users ?? []), newUser]).then(
-                        (): void => {
-                          const response: ClientResponse =
-                            createSuccessResponse({
-                              data: {
-                                token: sign(
-                                  {id: newUser.id},
-                                  process.env.JWT_KEY,
-                                  {
-                                    issuer: 'resen',
-                                    subject: newUser.username,
-                                    expiresIn: '2w'
+                  getItem('sessions').then((sessions: Session[]): void => {
+                    hash(data.password, 10).then(
+                      (hashedPassword: string): void => {
+                        const newUser: User = {
+                          id: nanoid(),
+                          username: data.username,
+                          displayName: data.displayName,
+                          password: hashedPassword,
+                          createdDate:
+                            DateTime.utc().toISO() ??
+                            new Date(Date.now()).toISOString(),
+                          modifiedDate:
+                            DateTime.utc().toISO() ??
+                            new Date(Date.now()).toISOString()
+                        };
+                        const newSession: Session = {
+                          id: nanoid(),
+                          userId: newUser.id,
+                          socket: socket.id,
+                          status: 'online',
+                          lastOnline:
+                            DateTime.utc().toISO() ??
+                            new Date(Date.now()).toISOString()
+                        };
+                        setItem('users', [...(users ?? []), newUser]).then(
+                          (): void => {
+                            setItem('sessions', [
+                              ...(sessions ?? []),
+                              newSession
+                            ]).then((): void => {
+                              const response: ClientResponse =
+                                createSuccessResponse({
+                                  data: {
+                                    token: sign(
+                                      {id: newUser.id, session: newSession.id},
+                                      process.env.JWT_KEY,
+                                      {
+                                        issuer: 'resen',
+                                        subject: newUser.username,
+                                        expiresIn: '2w'
+                                      }
+                                    )
                                   }
-                                )
-                              }
+                                });
+                              breezyLogger.info(
+                                {response: response},
+                                'signup success'
+                              );
+                              return callback(response);
                             });
-                          breezyLogger.info(
-                            {response: response},
-                            'signup success'
-                          );
-                          return callback(response);
-                        }
-                      );
-                    }
-                  );
+                          }
+                        );
+                      }
+                    );
+                  });
                   return undefined;
                 });
               })
