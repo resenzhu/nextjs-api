@@ -4,6 +4,7 @@ import {
   createSuccessResponse
 } from '@utils/response';
 import type {Server, Socket} from 'socket.io';
+import {type VerifyErrors, sign, verify} from 'jsonwebtoken';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import {breezyStorage} from '@utils/storage';
@@ -12,8 +13,11 @@ import joi from 'joi';
 import logger from '@utils/logger';
 import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
-import {sign} from 'jsonwebtoken';
 import {verifyReCaptcha} from '@utils/recaptcha';
+
+type VerifyTokenReq = {
+  token: string;
+};
 
 type SignUpReq = {
   username: string;
@@ -48,6 +52,51 @@ const breezyRouter = (server: Server): void => {
       socketid: socket.id
     });
     breezyLogger.info('socket connected');
+    socket.on(
+      'verify-token',
+      (
+        request: VerifyTokenReq,
+        callback: (response: ClientResponse) => void
+      ): void => {
+        breezyLogger.info({request: request}, 'verify token');
+        const requestSchema = joi.object({
+          token: joi.string().required().messages({
+            'string.base': "4220101|'token' must be a string.",
+            'string.empty': "4220102|'token' must not be empty.",
+            'any.required': "40001|'token' is required."
+          })
+        });
+        const {value: validatedValue, error: validationError} =
+          requestSchema.validate(request);
+        if (validationError) {
+          const response: ClientResponse = createErrorResponse({
+            code: validationError.message.split('|')[0],
+            message: validationError.message.split('|')[1]
+          });
+          breezyLogger.warn({response: response}, 'verify token failed');
+          return callback(response);
+        }
+        let data = validatedValue as VerifyTokenReq;
+        data = {
+          ...data,
+          token: sanitize(data.token).trim()
+        };
+        verify(
+          data.token,
+          process.env.JWT_KEY,
+          (error: VerifyErrors | null): void => {
+            const response: ClientResponse = createSuccessResponse({
+              data: {
+                valid: !error
+              }
+            });
+            breezyLogger.info({response: response}, 'verify token success');
+            return callback(response);
+          }
+        );
+        return undefined;
+      }
+    );
     socket.on(
       'signup',
       (
@@ -195,7 +244,7 @@ const breezyRouter = (server: Server): void => {
                                       {
                                         issuer: 'resen',
                                         subject: newUser.username,
-                                        expiresIn: '2w'
+                                        expiresIn: '8d'
                                       }
                                     )
                                   }
