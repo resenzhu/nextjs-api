@@ -191,8 +191,12 @@ const breezyRouter = (server: Server): void => {
                                   data: {
                                     token: sign(
                                       {id: newUser.id, session: newSession.id},
-                                      process.env.JWT_KEY,
+                                      Buffer.from(
+                                        process.env.JWT_KEY_PRIVATE_BASE64,
+                                        'base64'
+                                      ).toString(),
                                       {
+                                        algorithm: 'RS256',
                                         issuer: 'resen',
                                         subject: newUser.username,
                                         expiresIn: '8d'
