@@ -1,4 +1,4 @@
-import axios, {type AxiosResponse} from 'axios';
+import axios from 'axios';
 
 export const verifyReCaptcha = ({
   version,
@@ -19,7 +19,7 @@ export const verifyReCaptcha = ({
           response: token
         })
       )
-      .then((response: AxiosResponse): void => {
+      .then((response): void => {
         if (!response.data.success) {
           reject(new Error(response.data['error-codes'][0]));
         }

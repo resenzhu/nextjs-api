@@ -1,6 +1,6 @@
-import {type IncomingMessage, createServer} from 'http';
 import {Server} from 'socket.io';
 import {config} from 'dotenv';
+import {createServer} from 'http';
 import logger from '@utils/logger';
 import router from '@routers/index';
 
@@ -19,10 +19,7 @@ const ioServer = new Server({
         : undefined,
     optionsSuccessStatus: 200
   },
-  allowRequest: (
-    request: IncomingMessage,
-    callback: (error: string | null | undefined, success: boolean) => void
-  ): void => {
+  allowRequest: (request, callback): void => {
     const validOrigin = request.headers.origin === process.env.APP_CLIENT;
     callback(null, process.env.NODE_ENV === 'production' ? validOrigin : true);
   }
@@ -38,6 +35,6 @@ httpServer
       'server started'
     );
   })
-  .on('error', (error: Error): void => {
+  .on('error', (error): void => {
     logger.error(error, 'an error occured while starting the server');
   });

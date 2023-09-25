@@ -3,8 +3,8 @@ import {
   createErrorResponse,
   createSuccessResponse
 } from '@utils/response';
-import type {Server, Socket} from 'socket.io';
-import joi from 'joi';
+import {object, string} from 'joi';
+import type {Server} from 'socket.io';
 import logger from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
@@ -27,7 +27,7 @@ const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 const mainRouter = async (server: Server): Promise<void> => {
   const main = server.of('/main');
   const chatbot = await dockStart().then((dock: any): any => dock.get('nlp')); // eslint-disable-line
-  main.on('connection', (socket: Socket): void => {
+  main.on('connection', (socket): void => {
     const mainLogger = logger.child({
       namespace: 'main',
       socketid: socket.id
@@ -40,8 +40,8 @@ const mainRouter = async (server: Server): Promise<void> => {
         callback: (response: ClientResponse) => void
       ): Promise<void> => {
         mainLogger.info({request: request}, 'ask chatbot');
-        const requestSchema = joi.object({
-          input: joi.string().min(1).max(160).required().messages({
+        const requestSchema = object({
+          input: string().min(1).max(160).required().messages({
             'string.base': "4220101|'input' must be a string.",
             'string.empty': "4220102|'input' must not be empty.",
             'string.min':
@@ -83,9 +83,8 @@ const mainRouter = async (server: Server): Promise<void> => {
         callback: (response: ClientResponse) => void
       ): void => {
         mainLogger.info({request: request}, 'submit contact form');
-        const requestSchema = joi.object({
-          name: joi
-            .string()
+        const requestSchema = object({
+          name: string()
             .min(2)
             .max(120)
             .pattern(/^[a-zA-Z\s]*$/u)
@@ -101,7 +100,7 @@ const mainRouter = async (server: Server): Promise<void> => {
                 "4220105|'name' must only contain letters and spaces.",
               'any.required': "40001|'name' is required."
             }),
-          email: joi.string().min(3).max(320).email().required().messages({
+          email: string().min(3).max(320).email().required().messages({
             'string.base': "4220201|'email' must be a string.",
             'string.empty': "4220202|'email' must not be empty.",
             'string.min':
@@ -111,7 +110,7 @@ const mainRouter = async (server: Server): Promise<void> => {
             'string.email': "4220205|'email' must be in a valid format.",
             'any.required': "40002|'email' is required."
           }),
-          message: joi.string().min(15).max(2000).required().messages({
+          message: string().min(15).max(2000).required().messages({
             'string.base': "4220301|'message' must be a string.",
             'string.empty': "4220302|'message' must not be empty.",
             'string.min':
@@ -120,12 +119,12 @@ const mainRouter = async (server: Server): Promise<void> => {
               "4220304|'message' must be between 15 and 2000 characters.",
             'any.required': "40003|'message' is required."
           }),
-          honeypot: joi.string().allow('').length(0).required().messages({
+          honeypot: string().allow('').length(0).required().messages({
             'string.base': "4220401|'honeypot' must be a string.",
             'string.length': "4220402|'honeypot' must be empty.",
             'any.required': "40004|'honeypot' is required."
           }),
-          token: joi.string().required().messages({
+          token: string().required().messages({
             'string.base': "4220501|'token' must be a string.",
             'string.empty': "4220502|'token' must not be empty.",
             'any.required': "40005|'token' is required."

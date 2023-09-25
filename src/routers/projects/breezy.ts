@@ -3,12 +3,12 @@ import {
   createErrorResponse,
   createSuccessResponse
 } from '@utils/response';
-import type {Server, Socket} from 'socket.io';
 import {getItem, setItem} from 'node-persist';
+import {object, string} from 'joi';
 import {DateTime} from 'luxon';
+import type {Server} from 'socket.io';
 import {breezyStorage} from '@utils/storage';
 import {hash} from 'bcrypt';
-import joi from 'joi';
 import logger from '@utils/logger';
 import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
@@ -42,7 +42,7 @@ type Session = {
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
-  breezy.on('connection', (socket: Socket): void => {
+  breezy.on('connection', (socket): void => {
     const breezyLogger = logger.child({
       namespace: 'project/breezy',
       socketid: socket.id
@@ -55,9 +55,8 @@ const breezyRouter = (server: Server): void => {
         callback: (response: ClientResponse) => void
       ): void => {
         breezyLogger.info({request: request}, 'signup');
-        const requestSchema = joi.object({
-          username: joi
-            .string()
+        const requestSchema = object({
+          username: string()
             .min(2)
             .max(15)
             .pattern(/^[a-zA-Z0-9_-]+$/u)
@@ -73,8 +72,7 @@ const breezyRouter = (server: Server): void => {
                 "4220105|'username' must only contain letters, numbers, hyphen, and underscore.",
               'any.required': "40001|'username' is required."
             }),
-          displayName: joi
-            .string()
+          displayName: string()
             .min(2)
             .max(25)
             .pattern(/^[a-zA-Z\s]*$/u)
@@ -90,7 +88,7 @@ const breezyRouter = (server: Server): void => {
                 "4220105|'displayName' must only contain letters and spaces.",
               'any.required': "40001|'displayName' is required."
             }),
-          password: joi.string().min(8).max(64).required().messages({
+          password: string().min(8).max(64).required().messages({
             'string.base': "4220301|'password' must be a string.",
             'string.empty': "4220302|'password' must not be empty.",
             'string.min':
@@ -99,12 +97,12 @@ const breezyRouter = (server: Server): void => {
               "4220304|'password' must be between 8 and 64 characters.",
             'any.required': "40003|'password' is required."
           }),
-          honeypot: joi.string().allow('').length(0).required().messages({
+          honeypot: string().allow('').length(0).required().messages({
             'string.base': "4220401|'honeypot' must be a string.",
             'string.length': "4220402|'honeypot' must be empty.",
             'any.required': "40004|'honeypot' is required."
           }),
-          token: joi.string().required().messages({
+          token: string().required().messages({
             'string.base': "4220501|'token' must be a string.",
             'string.empty': "4220502|'token' must not be empty.",
             'any.required': "40005|'token' is required."
@@ -157,63 +155,61 @@ const breezyRouter = (server: Server): void => {
                     return callback(response);
                   }
                   getItem('sessions').then((sessions: Session[]): void => {
-                    hash(data.password, 10).then(
-                      (hashedPassword: string): void => {
-                        const newUser: User = {
-                          id: nanoid(),
-                          username: data.username,
-                          displayName: data.displayName,
-                          password: hashedPassword,
-                          createdDate:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString(),
-                          modifiedDate:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString()
-                        };
-                        const newSession: Session = {
-                          id: nanoid(),
-                          userId: newUser.id,
-                          socket: socket.id,
-                          status: 'online',
-                          lastOnline:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString()
-                        };
-                        setItem('users', [...(users ?? []), newUser]).then(
-                          (): void => {
-                            setItem('sessions', [
-                              ...(sessions ?? []),
-                              newSession
-                            ]).then((): void => {
-                              const response: ClientResponse =
-                                createSuccessResponse({
-                                  data: {
-                                    token: sign(
-                                      {id: newUser.id, session: newSession.id},
-                                      Buffer.from(
-                                        process.env.JWT_KEY_PRIVATE_BASE64,
-                                        'base64'
-                                      ).toString(),
-                                      {
-                                        algorithm: 'RS256',
-                                        issuer: 'resen',
-                                        subject: newUser.username,
-                                        expiresIn: '8d'
-                                      }
-                                    )
-                                  }
-                                });
-                              breezyLogger.info(
-                                {response: response},
-                                'signup success'
-                              );
-                              return callback(response);
-                            });
-                          }
-                        );
-                      }
-                    );
+                    hash(data.password, 10).then((hashedPassword): void => {
+                      const newUser: User = {
+                        id: nanoid(),
+                        username: data.username,
+                        displayName: data.displayName,
+                        password: hashedPassword,
+                        createdDate:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString(),
+                        modifiedDate:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString()
+                      };
+                      const newSession: Session = {
+                        id: nanoid(),
+                        userId: newUser.id,
+                        socket: socket.id,
+                        status: 'online',
+                        lastOnline:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString()
+                      };
+                      setItem('users', [...(users ?? []), newUser]).then(
+                        (): void => {
+                          setItem('sessions', [
+                            ...(sessions ?? []),
+                            newSession
+                          ]).then((): void => {
+                            const response: ClientResponse =
+                              createSuccessResponse({
+                                data: {
+                                  token: sign(
+                                    {id: newUser.id, session: newSession.id},
+                                    Buffer.from(
+                                      process.env.JWT_KEY_PRIVATE_BASE64,
+                                      'base64'
+                                    ).toString(),
+                                    {
+                                      algorithm: 'RS256',
+                                      issuer: 'resen',
+                                      subject: newUser.username,
+                                      expiresIn: '8d'
+                                    }
+                                  )
+                                }
+                              });
+                            breezyLogger.info(
+                              {response: response},
+                              'signup success'
+                            );
+                            return callback(response);
+                          });
+                        }
+                      );
+                    });
                   });
                   return undefined;
                 });
