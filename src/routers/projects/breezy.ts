@@ -150,7 +150,7 @@ const breezyRouter = (server: Server): void => {
                     );
                   if (exists) {
                     const response: ClientResponse = createErrorResponse({
-                      code: '409',
+                      code: '40901',
                       message: 'username already exists.'
                     });
                     breezyLogger.warn({response: response}, 'signup failed');
