@@ -1,8 +1,6 @@
+import {askChatbot, disconnect, submitContactForm} from '@events/main';
 import type {Server} from 'socket.io';
-import askChatbot from '@events/main/ask-chatbot';
-import disconnect from '@events/main/disconnect';
 import logger from '@utils/logger';
-import submitContactForm from '@events/main/submit-contact-form';
 
 const {dockStart} = require('@nlpjs/basic'); // eslint-disable-line
 
