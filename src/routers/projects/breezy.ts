@@ -326,7 +326,7 @@ const breezyRouter = (server: Server): void => {
             }
             breezyStorage
               .then((): void => {
-                getItem('users').then((users: User[]): void => {});
+                getItem('users').then((): void => {});
               })
               .catch((error: Error): void => {
                 const response: ClientResponse = createErrorResponse({
