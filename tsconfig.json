@@ -23,6 +23,7 @@
     "noUnusedParameters": true,
     "outDir": "dist",
     "paths": {
+      "@events/*": ["src/events/*"],
       "@routers/*": ["src/routers/*"],
       "@utils/*": ["src/utils/*"]
     },
