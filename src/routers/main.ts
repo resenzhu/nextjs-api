@@ -163,7 +163,7 @@ const mainRouter = async (server: Server): Promise<void> => {
           .then((score): void => {
             if (Number(score) <= 0.5) {
               const response: ClientResponse = createErrorResponse({
-                code: '403',
+                code: '40304',
                 message: 'access denied for bot form submission.'
               });
               mainLogger.warn(
