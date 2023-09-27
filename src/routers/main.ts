@@ -1,5 +1,6 @@
 import type {Server} from 'socket.io';
 import askChatbot from '@events/main/ask-chatbot';
+import disconnect from '@events/main/disconnect';
 import logger from '@utils/logger';
 import submitContactForm from '@events/main/submit-contact-form';
 
@@ -16,9 +17,7 @@ const mainRouter = async (server: Server): Promise<void> => {
     mainLogger.info('socket connected');
     askChatbot(socket, mainLogger, {chatbot: chatbot});
     submitContactForm(socket, mainLogger);
-    socket.on('disconnect', (): void => {
-      mainLogger.info('socket disconnected');
-    });
+    disconnect(socket, mainLogger);
   });
 };
 
