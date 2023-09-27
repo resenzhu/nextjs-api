@@ -4,15 +4,12 @@ import {
   createSuccessResponse
 } from '@utils/response';
 import type {Server} from 'socket.io';
+import askChatbot from '@events/main/ask-chatbot';
 import joi from 'joi';
 import logger from '@utils/logger';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
 import {verifyReCaptcha} from '@utils/recaptcha';
-
-type AskChatbotReq = {
-  input: string;
-};
 
 type SubmitContactFormReq = {
   name: string;
@@ -33,49 +30,7 @@ const mainRouter = async (server: Server): Promise<void> => {
       socketid: socket.id
     });
     mainLogger.info('socket connected');
-    socket.on(
-      'ask-chatbot',
-      async (
-        request: AskChatbotReq,
-        callback: (response: ClientResponse) => void
-      ): Promise<void> => {
-        mainLogger.info({request: request}, 'ask chatbot');
-        const requestSchema = joi.object({
-          input: joi.string().min(1).max(160).required().messages({
-            'string.base': "4220101|'input' must be a string.",
-            'string.empty': "4220102|'input' must not be empty.",
-            'string.min':
-              "4220103|'input' must be between 1 and 160 characters.",
-            'string.max':
-              "4220104|'input' must be between 1 and 160 characters.",
-            'any.required': "40001|'input' is required."
-          })
-        });
-        const {value: validatedValue, error: validationError} =
-          requestSchema.validate(request);
-        if (validationError) {
-          const response: ClientResponse = createErrorResponse({
-            code: validationError.message.split('|')[0],
-            message: validationError.message.split('|')[1]
-          });
-          mainLogger.warn({response: response}, 'ask chatbot failed');
-          return callback(response);
-        }
-        let data = validatedValue as AskChatbotReq;
-        data = {
-          ...data,
-          input: sanitize(data.input).trim()
-        };
-        const reply = await chatbot.process(data.input);
-        const response: ClientResponse = createSuccessResponse({
-          data: {
-            reply: reply.answer
-          }
-        });
-        mainLogger.info({response: response}, 'ask chatbot success');
-        return callback(response);
-      }
-    );
+    askChatbot(socket, mainLogger, {chatbot: chatbot});
     socket.on(
       'submit-contact-form',
       (
@@ -219,5 +174,5 @@ const mainRouter = async (server: Server): Promise<void> => {
   });
 };
 
-export type {AskChatbotReq, SubmitContactFormReq};
+export type {SubmitContactFormReq};
 export default mainRouter;
