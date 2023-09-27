@@ -134,7 +134,7 @@ const breezyRouter = (server: Server): void => {
           .then((success): void => {
             if (!success) {
               const response: ClientResponse = createErrorResponse({
-                code: '403',
+                code: '40304',
                 message: 'access denied for bot form submission.'
               });
               breezyLogger.warn({response: response}, 'signup failed');
