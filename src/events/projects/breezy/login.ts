@@ -104,7 +104,7 @@ const login = (socket: Socket, logger: Logger): void => {
                   );
                   if (!account || account.password !== hashedPassword) {
                     const response: ClientResponse = createErrorResponse({
-                      code: '40101',
+                      code: '401',
                       message: 'invalid username or password.'
                     });
                     logger.warn({response: response}, 'login failed');
