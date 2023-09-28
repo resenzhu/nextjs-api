@@ -136,12 +136,10 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
           breezyStorage
             .then((): void => {
               getItem('users').then((users: User[]): void => {
-                const exists: boolean =
-                  users &&
-                  users.some(
-                    (user): boolean => user.username === data.username
-                  );
-                if (exists) {
+                const account = users.find(
+                  (user): boolean => user.username === data.username
+                );
+                if (account) {
                   const response: ClientResponse = createErrorResponse({
                     code: '40901',
                     message: 'username already exists.'
