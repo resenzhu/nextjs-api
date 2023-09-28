@@ -1,10 +1,19 @@
-import {type ClientResponse, createErrorResponse} from '@utils/response';
+import {
+  type ClientResponse,
+  createErrorResponse,
+  createSuccessResponse
+} from '@utils/response';
+import type {Session, User} from '@events/projects/breezy/signup';
+import {getItem, setItem} from 'node-persist';
+import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import {breezyStorage} from '@utils/storage';
-import {getItem} from 'node-persist';
+import {hash} from 'bcrypt';
 import joi from 'joi';
+import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
+import {sign} from 'jsonwebtoken';
 import {verifyReCaptcha} from '@utils/recaptcha';
 
 type LoginReq = {
@@ -88,7 +97,77 @@ const login = (socket: Socket, logger: Logger): void => {
           }
           breezyStorage
             .then((): void => {
-              getItem('users').then((): void => {});
+              getItem('users').then((users: User[]): void => {
+                hash(data.password, 10).then((hashedPassword): void => {
+                  const account = users.find(
+                    (user): boolean => user.username === data.username
+                  );
+                  if (!account || account.password !== hashedPassword) {
+                    const response: ClientResponse = createErrorResponse({
+                      code: '40101',
+                      message: 'invalid username or password.'
+                    });
+                    logger.warn({response: response}, 'login failed');
+                    return callback(response);
+                  }
+                  getItem('sessions').then((sessions: Session[]): void => {
+                    let newSessions: Session[] = [];
+                    let newSession: Session = {
+                      id: nanoid(),
+                      userId: account.id,
+                      socket: socket.id,
+                      status: 'online',
+                      lastOnline:
+                        DateTime.utc().toISO() ??
+                        new Date(Date.now()).toISOString()
+                    };
+                    const currentSession = sessions.find(
+                      (session): boolean => session.userId === account.id
+                    );
+                    if (currentSession) {
+                      newSessions = sessions.map((session): Session => {
+                        if (session.userId === account.id) {
+                          newSession = {
+                            ...session,
+                            id: nanoid(),
+                            socket: socket.id,
+                            status: 'online',
+                            lastOnline:
+                              DateTime.utc().toISO() ??
+                              new Date(Date.now()).toISOString()
+                          };
+                          return newSession;
+                        }
+                        return session;
+                      });
+                    } else {
+                      newSessions = [...sessions, newSession];
+                    }
+                    setItem('sessions', newSessions).then((): void => {
+                      const response: ClientResponse = createSuccessResponse({
+                        data: {
+                          token: sign(
+                            {id: account.id, session: newSession.id},
+                            Buffer.from(
+                              process.env.JWT_KEY_PRIVATE_BASE64,
+                              'base64'
+                            ).toString(),
+                            {
+                              algorithm: 'RS256',
+                              issuer: 'resen',
+                              subject: account.username,
+                              expiresIn: '8d'
+                            }
+                          )
+                        }
+                      });
+                      logger.info({response: response}, 'login success');
+                      return callback(response);
+                    });
+                  });
+                  return undefined;
+                });
+              });
             })
             .catch((error: Error): void => {
               const response: ClientResponse = createErrorResponse({
