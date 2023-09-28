@@ -99,7 +99,7 @@ const login = (socket: Socket, logger: Logger): void => {
             .then((): void => {
               getItem('users').then((users: User[]): void => {
                 hash(data.password, 10).then((hashedPassword): void => {
-                  const account = users.find(
+                  const account = users?.find(
                     (user): boolean => user.username === data.username
                   );
                   if (!account || account.password !== hashedPassword) {

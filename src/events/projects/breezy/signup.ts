@@ -136,7 +136,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
           breezyStorage
             .then((): void => {
               getItem('users').then((users: User[]): void => {
-                const account = users.find(
+                const account = users?.find(
                   (user): boolean => user.username === data.username
                 );
                 if (account) {
