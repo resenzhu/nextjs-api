@@ -3,9 +3,12 @@ import {
   createErrorResponse,
   createSuccessResponse
 } from '@utils/response';
+import {getItem, setItem} from 'node-persist';
+import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import joi from 'joi';
+import {mainStorage} from '@utils/storage';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
 import {verifyReCaptcha} from '@utils/recaptcha';
@@ -16,6 +19,12 @@ type SubmitContactFormReq = {
   message: string;
   honeypot: string;
   token: string;
+};
+
+type Submission = {
+  submitter: string;
+  timestamp: string;
+  count: number;
 };
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
@@ -110,27 +119,105 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, 'submit contact form failed');
             return callback(response);
           }
-          sendEmail({
-            name: data.name,
-            email: data.email,
-            message: data.message
-          })
-            .then((): void => {
-              const response: ClientResponse = createSuccessResponse({});
-              logger.info({response: response}, 'submit contact form success');
-              return callback(response);
-            })
-            .catch((error: Error): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while attempting to send the email.'
-              });
-              logger.warn(
-                {response: response, error: error.message},
-                'submit contact form failed'
-              );
-              return callback(response);
+          const userAgent = socket.handshake.headers['user-agent'];
+          if (!userAgent) {
+            const response: ClientResponse = createErrorResponse({
+              code: '400',
+              message: 'user agent header is required.'
             });
+            logger.warn({response: response}, 'submit contact form failed');
+            return callback(response);
+          }
+          mainStorage.then((): void => {
+            getItem('contact form submissions').then(
+              (formSubmissions: Submission[]): void => {
+                const submission = formSubmissions?.find(
+                  (formSubmission): boolean =>
+                    formSubmission.submitter === btoa(userAgent)
+                );
+                if (
+                  submission &&
+                  DateTime.utc().diff(
+                    DateTime.fromISO(submission.timestamp).toUTC(),
+                    ['days']
+                  ).days < 1 &&
+                  submission.count === 5
+                ) {
+                  const response: ClientResponse = createErrorResponse({
+                    code: '429',
+                    message: 'too many requests.'
+                  });
+                  logger.warn(
+                    {response: response},
+                    'submit contact form failed'
+                  );
+                  return callback(response);
+                }
+                sendEmail({
+                  name: data.name,
+                  email: data.email,
+                  message: data.message
+                })
+                  .then((): void => {
+                    let newFormSubmissions: Submission[] = [];
+                    if (submission) {
+                      newFormSubmissions = formSubmissions.map(
+                        (formSubmission): Submission => {
+                          if (
+                            formSubmission.submitter === submission.submitter
+                          ) {
+                            const newFormSubmission: Submission = {
+                              ...formSubmission,
+                              count: formSubmission.count + 1
+                            };
+                            return newFormSubmission;
+                          }
+                          return formSubmission;
+                        }
+                      );
+                    } else {
+                      const newFormSubmission: Submission = {
+                        submitter: btoa(userAgent),
+                        timestamp:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString(),
+                        count: 1
+                      };
+                      newFormSubmissions = [
+                        ...(formSubmissions ?? []),
+                        newFormSubmission
+                      ];
+                    }
+                    setItem(
+                      'contact form submissions',
+                      newFormSubmissions
+                    ).then((): void => {
+                      const response: ClientResponse = createSuccessResponse(
+                        {}
+                      );
+                      logger.info(
+                        {response: response},
+                        'submit contact form success'
+                      );
+                      return callback(response);
+                    });
+                  })
+                  .catch((error: Error): void => {
+                    const response: ClientResponse = createErrorResponse({
+                      code: '500',
+                      message:
+                        'an error occured while attempting to send the email.'
+                    });
+                    logger.warn(
+                      {response: response, error: error.message},
+                      'submit contact form failed'
+                    );
+                    return callback(response);
+                  });
+                return undefined;
+              }
+            );
+          });
           return undefined;
         })
         .catch((error: Error): void => {
