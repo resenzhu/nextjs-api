@@ -136,7 +136,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     DateTime.fromISO(submission.timestamp).toISODate() ===
                       DateTime.utc().toLocal().toISODate()
                 );
-                if (todaySubmissions.length === 5) {
+                if (todaySubmissions && todaySubmissions.length === 5) {
                   const response: ClientResponse = createErrorResponse({
                     code: '429',
                     message: 'too many requests.'
@@ -159,10 +159,11 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                         DateTime.utc().toISO() ??
                         new Date(Date.now()).toISOString()
                     };
-                    setItem('main contact form submissions', [
-                      ...(submissions ?? []),
-                      newSubmission
-                    ]).then((): void => {
+                    setItem(
+                      'main contact form submissions',
+                      [...(submissions ?? []), newSubmission],
+                      {ttl: 2 * 24 * 60 * 60 * 1000}
+                    ).then((): void => {
                       const response: ClientResponse = createSuccessResponse(
                         {}
                       );
