@@ -130,7 +130,7 @@
     "symbol-description": "warn",
     "vars-on-top": "warn",
     "yoda": "warn",
-    "array-bracket-newline": "warn",
+    "array-bracket-newline": ["warn", "consistent"],
     "array-bracket-spacing": "warn",
     "array-element-newline": ["warn", "consistent"],
     "arrow-parens": "warn",
