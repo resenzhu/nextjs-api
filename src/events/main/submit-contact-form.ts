@@ -26,6 +26,8 @@ type Submission = {
   timestamp: string;
 };
 
+const redact: string[] = ['request.name', 'request.email'];
+
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
     'submit contact form',
@@ -208,5 +210,6 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
   );
 };
 
+export {redact};
 export type {SubmitContactFormReq, Submission};
 export default submitContactFormEvent;
