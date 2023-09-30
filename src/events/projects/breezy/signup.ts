@@ -7,12 +7,12 @@ import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import {breezyStorage} from '@utils/storage';
 import {hash} from 'bcrypt';
 import joi from 'joi';
 import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
 import {sign} from 'jsonwebtoken';
+import {storage} from '@utils/storage';
 import {verifyReCaptcha} from '@utils/recaptcha';
 
 type SignUpReq = {
@@ -133,9 +133,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, 'signup failed');
             return callback(response);
           }
-          breezyStorage
+          storage
             .then((): void => {
-              getItem('users').then((users: User[]): void => {
+              getItem('breezy users').then((users: User[]): void => {
                 const account = users?.find(
                   (user): boolean => user.username === data.username
                 );
@@ -147,7 +147,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   logger.warn({response: response}, 'signup failed');
                   return callback(response);
                 }
-                getItem('sessions').then((sessions: Session[]): void => {
+                getItem('breezy sessions').then((sessions: Session[]): void => {
                   hash(data.password, 10).then((hashedPassword): void => {
                     const newUser: User = {
                       id: nanoid(),
@@ -170,9 +170,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                         DateTime.utc().toISO() ??
                         new Date(Date.now()).toISOString()
                     };
-                    setItem('users', [...(users ?? []), newUser]).then(
+                    setItem('breezy users', [...(users ?? []), newUser]).then(
                       (): void => {
-                        setItem('sessions', [
+                        setItem('breezy sessions', [
                           ...(sessions ?? []),
                           newSession
                         ]).then((): void => {

@@ -8,9 +8,9 @@ import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import joi from 'joi';
-import {mainStorage} from '@utils/storage';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
+import {storage} from '@utils/storage';
 import {verifyReCaptcha} from '@utils/recaptcha';
 
 type SubmitContactFormReq = {
@@ -128,8 +128,8 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, 'submit contact form failed');
             return callback(response);
           }
-          mainStorage.then((): void => {
-            getItem('contact form submissions').then(
+          storage.then((): void => {
+            getItem('main contact form submissions').then(
               (formSubmissions: Submission[]): void => {
                 const submission = formSubmissions?.find(
                   (formSubmission): boolean =>
@@ -189,7 +189,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                       ];
                     }
                     setItem(
-                      'contact form submissions',
+                      'main contact form submissions',
                       newFormSubmissions
                     ).then((): void => {
                       const response: ClientResponse = createSuccessResponse(
