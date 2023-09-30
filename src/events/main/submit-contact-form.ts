@@ -24,7 +24,6 @@ type SubmitContactFormReq = {
 type Submission = {
   submitter: string;
   timestamp: string;
-  count: number;
 };
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
@@ -130,19 +129,14 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           }
           storage.then((): void => {
             getItem('main contact form submissions').then(
-              (formSubmissions: Submission[]): void => {
-                const submission = formSubmissions?.find(
-                  (formSubmission): boolean =>
-                    formSubmission.submitter === btoa(userAgent)
+              (submissions: Submission[]): void => {
+                const todaySubmissions = submissions?.filter(
+                  (submission): boolean =>
+                    submission.submitter === btoa(userAgent) &&
+                    DateTime.fromISO(submission.timestamp).toISODate() ===
+                      DateTime.utc().toLocal().toISODate()
                 );
-                if (
-                  submission &&
-                  DateTime.utc().diff(
-                    DateTime.fromISO(submission.timestamp).toUTC(),
-                    ['days']
-                  ).days < 1 &&
-                  submission.count === 5
-                ) {
+                if (todaySubmissions.length === 5) {
                   const response: ClientResponse = createErrorResponse({
                     code: '429',
                     message: 'too many requests.'
@@ -159,39 +153,16 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                   message: data.message
                 })
                   .then((): void => {
-                    let newFormSubmissions: Submission[] = [];
-                    if (submission) {
-                      newFormSubmissions = formSubmissions.map(
-                        (formSubmission): Submission => {
-                          if (
-                            formSubmission.submitter === submission.submitter
-                          ) {
-                            const newFormSubmission: Submission = {
-                              ...formSubmission,
-                              count: formSubmission.count + 1
-                            };
-                            return newFormSubmission;
-                          }
-                          return formSubmission;
-                        }
-                      );
-                    } else {
-                      const newFormSubmission: Submission = {
-                        submitter: btoa(userAgent),
-                        timestamp:
-                          DateTime.utc().toISO() ??
-                          new Date(Date.now()).toISOString(),
-                        count: 1
-                      };
-                      newFormSubmissions = [
-                        ...(formSubmissions ?? []),
-                        newFormSubmission
-                      ];
-                    }
-                    setItem(
-                      'main contact form submissions',
-                      newFormSubmissions
-                    ).then((): void => {
+                    const newSubmission: Submission = {
+                      submitter: btoa(userAgent),
+                      timestamp:
+                        DateTime.utc().toISO() ??
+                        new Date(Date.now()).toISOString()
+                    };
+                    setItem('main contact form submissions', [
+                      ...(submissions ?? []),
+                      newSubmission
+                    ]).then((): void => {
                       const response: ClientResponse = createSuccessResponse(
                         {}
                       );
