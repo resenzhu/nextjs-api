@@ -40,6 +40,8 @@ type Session = {
   lastOnline: string;
 };
 
+const redact: string[] = ['request.password'];
+
 const signupEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
     'signup',
@@ -233,5 +235,6 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
   );
 };
 
+export {redact};
 export type {SignUpReq, User, Session};
 export default signupEvent;

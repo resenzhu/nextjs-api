@@ -23,6 +23,8 @@ type LoginReq = {
   token: string;
 };
 
+const redact: string[] = ['request.password'];
+
 const login = (socket: Socket, logger: Logger): void => {
   socket.on(
     'login',
@@ -205,4 +207,6 @@ const login = (socket: Socket, logger: Logger): void => {
   );
 };
 
+export {redact};
+export type {LoginReq};
 export default login;
