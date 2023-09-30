@@ -207,5 +207,5 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
   );
 };
 
-export type {SubmitContactFormReq};
+export type {SubmitContactFormReq, Submission};
 export default submitContactFormEvent;
