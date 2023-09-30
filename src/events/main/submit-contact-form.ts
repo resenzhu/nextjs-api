@@ -29,7 +29,7 @@ type Submission = {
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
-    'submit-contact-form',
+    'submit contact form',
     (
       request: SubmitContactFormReq,
       callback: (response: ClientResponse) => void

@@ -42,7 +42,7 @@ const mainEvent: {
   submitContactForm: () => void;
 } = {
   askChatbot: (): void => {
-    call(mainSocket, 'ask-chatbot', {
+    call(mainSocket, 'ask chatbot', {
       input: 'hello'
     });
   },
@@ -52,7 +52,7 @@ const mainEvent: {
       length: Math.floor(Math.random() * 3 + 1),
       separator: ' '
     });
-    call(mainSocket, 'submit-contact-form', {
+    call(mainSocket, 'submit contact form', {
       name: name,
       email: `${name.replaceAll(' ', '.').toLowerCase()}@email.com`,
       message: new LoremIpsum().generateParagraphs(1),

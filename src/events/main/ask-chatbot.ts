@@ -18,7 +18,7 @@ const askChatbotEvent = (
   {chatbot}: {chatbot: any} // eslint-disable-line
 ): void => {
   socket.on(
-    'ask-chatbot',
+    'ask chatbot',
     async (
       request: AskChatbotReq,
       callback: (response: ClientResponse) => void
