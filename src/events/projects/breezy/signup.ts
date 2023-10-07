@@ -40,7 +40,7 @@ type Session = {
   lastOnline: string;
 };
 
-const redact: string[] = ['request.password, request.token'];
+const redact: string[] = ['request.password', 'request.token'];
 
 const signupEvent = (socket: Socket, logger: Logger): void => {
   socket.on(

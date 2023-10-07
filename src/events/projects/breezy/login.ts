@@ -23,7 +23,7 @@ type LoginReq = {
   token: string;
 };
 
-const redact: string[] = ['request.password, request.token'];
+const redact: string[] = ['request.password', 'request.token'];
 
 const login = (socket: Socket, logger: Logger): void => {
   socket.on(
