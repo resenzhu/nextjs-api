@@ -37,6 +37,14 @@ type User = {
   };
 };
 
+type UserSignedUpNotif = {
+  id: string;
+  username: string;
+  displayName: string;
+  status: 'online' | 'away' | 'offline';
+  lastOnline: string;
+};
+
 const redact: string[] = ['request.password', 'request.token'];
 
 const signupEvent = (socket: Socket, logger: Logger): void => {
@@ -177,6 +185,14 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                     ) ?? []),
                     newUser
                   ]).then((): void => {
+                    const signedUpUser: UserSignedUpNotif = {
+                      id: newUser.id,
+                      username: newUser.username,
+                      displayName: newUser.displayName,
+                      status: newUser.session.status,
+                      lastOnline: newUser.session.lastOnline
+                    };
+                    socket.broadcast.emit('user signed up', signedUpUser);
                     const response: ClientResponse = createSuccessResponse({
                       data: {
                         token: sign(
