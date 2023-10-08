@@ -3,11 +3,11 @@ import {
   createErrorResponse,
   createSuccessResponse
 } from '@utils/response';
-import type {Session, User} from '@events/projects/breezy/signup';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
+import type {User} from '@events/projects/breezy/signup';
 import {compare} from 'bcrypt';
 import joi from 'joi';
 import {nanoid} from 'nanoid';
@@ -101,7 +101,16 @@ const login = (socket: Socket, logger: Logger): void => {
             .then((): void => {
               getItem('breezy users').then((users: User[]): void => {
                 const account = users?.find(
-                  (user): boolean => user.username === data.username
+                  (user): boolean =>
+                    user.username === data.username &&
+                    DateTime.utc()
+                      .endOf('day')
+                      .diff(
+                        DateTime.fromISO(user.session.lastOnline)
+                          .toUTC()
+                          .startOf('day'),
+                        ['months']
+                      ).months <= 1
                 );
                 compare(data.password, account?.password ?? '').then(
                   (correctPassword): void => {
@@ -113,66 +122,44 @@ const login = (socket: Socket, logger: Logger): void => {
                       logger.warn({response: response}, 'login failed');
                       return callback(response);
                     }
-                    getItem('breezy sessions').then(
-                      (sessions: Session[]): void => {
-                        let newSessions: Session[] = [];
-                        let newSession: Session = {
-                          id: nanoid(),
-                          userId: account.id,
-                          socket: socket.id,
-                          status: 'online',
-                          lastOnline:
-                            DateTime.utc().toISO() ??
-                            new Date(Date.now()).toISOString()
-                        };
-                        const currentSession = sessions.find(
-                          (session): boolean => session.userId === account.id
-                        );
-                        if (currentSession) {
-                          newSessions = sessions.map((session): Session => {
-                            if (session.userId === account.id) {
-                              newSession = {
-                                ...session,
-                                id: nanoid(),
-                                socket: socket.id,
-                                status: 'online',
-                                lastOnline:
-                                  DateTime.utc().toISO() ??
-                                  new Date(Date.now()).toISOString()
-                              };
-                              return newSession;
-                            }
-                            return session;
-                          });
-                        } else {
-                          newSessions = [...sessions, newSession];
-                        }
-                        setItem('breezy sessions', newSessions).then(
-                          (): void => {
-                            const response: ClientResponse =
-                              createSuccessResponse({
-                                data: {
-                                  token: sign(
-                                    {id: account.id, session: newSession.id},
-                                    Buffer.from(
-                                      process.env.JWT_KEY_PRIVATE_BASE64,
-                                      'base64'
-                                    ).toString(),
-                                    {
-                                      algorithm: 'RS256',
-                                      issuer: 'resen',
-                                      subject: account.username,
-                                      expiresIn: '8d'
-                                    }
-                                  )
-                                }
-                              });
-                            logger.info({response: response}, 'login success');
-                            return callback(response);
+                    const newSessionId = nanoid();
+                    const updatedUsers = users.map((user): User => {
+                      if (user.id === account.id) {
+                        const updatedUser: User = {
+                          ...user,
+                          session: {
+                            ...user.session,
+                            id: newSessionId,
+                            socket: socket.id,
+                            status: 'online',
+                            lastOnline:
+                              DateTime.utc().toISO() ?? new Date().toISOString()
                           }
-                        );
+                        };
+                        return updatedUser;
                       }
-                    );
+                      return user;
+                    });
+                    setItem('breezy users', updatedUsers).then((): void => {
+                      const response: ClientResponse = createSuccessResponse({
+                        data: {
+                          token: sign(
+                            {id: account.id, session: newSessionId},
+                            Buffer.from(
+                              process.env.JWT_KEY_PRIVATE_BASE64,
+                              'base64'
+                            ).toString(),
+                            {
+                              algorithm: 'RS256',
+                              issuer: 'resen',
+                              subject: account.username
+                            }
+                          )
+                        }
+                      });
+                      logger.info({response: response}, 'login success');
+                      return callback(response);
+                    });
                     return undefined;
                   }
                 );
