@@ -1,0 +1,4 @@
+// TODO add ttl when signing token.
+// TODO log out current session if user logs in from new device.
+// TODO update status to offline when user's socket disconnects.
+// TODO broadcast notifications to other online users if there is a new signed up user.
