@@ -28,16 +28,13 @@ type User = {
   username: string;
   displayName: string;
   password: string;
-  createdDate: string;
-  modifiedDate: string;
-};
-
-type Session = {
-  id: string;
-  userId: string;
-  socket: string | null;
-  status: 'online' | 'away' | 'offline';
-  lastOnline: string;
+  joinDate: string;
+  session: {
+    id: string;
+    socket: string | null;
+    status: 'online' | 'away' | 'offline';
+    lastOnline: string;
+  };
 };
 
 const redact: string[] = ['request.password', 'request.token'];
@@ -139,7 +136,16 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             .then((): void => {
               getItem('breezy users').then((users: User[]): void => {
                 const account = users?.find(
-                  (user): boolean => user.username === data.username
+                  (user): boolean =>
+                    user.username === data.username &&
+                    DateTime.utc()
+                      .endOf('day')
+                      .diff(
+                        DateTime.fromISO(user.session.lastOnline)
+                          .toUTC()
+                          .startOf('day'),
+                        ['months']
+                      ).months <= 1
                 );
                 if (account) {
                   const response: ClientResponse = createErrorResponse({
@@ -149,58 +155,46 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   logger.warn({response: response}, 'signup failed');
                   return callback(response);
                 }
-                getItem('breezy sessions').then((sessions: Session[]): void => {
-                  hash(data.password, 10).then((hashedPassword): void => {
-                    const newUser: User = {
+                hash(data.password, nanoid()).then((hashedPassword): void => {
+                  const timestamp: string =
+                    DateTime.utc().toISO() ?? new Date().toISOString();
+                  const newUser: User = {
+                    id: nanoid(),
+                    username: data.username,
+                    displayName: data.displayName,
+                    password: hashedPassword,
+                    joinDate: timestamp,
+                    session: {
                       id: nanoid(),
-                      username: data.username,
-                      displayName: data.displayName,
-                      password: hashedPassword,
-                      createdDate:
-                        DateTime.utc().toISO() ??
-                        new Date(Date.now()).toISOString(),
-                      modifiedDate:
-                        DateTime.utc().toISO() ??
-                        new Date(Date.now()).toISOString()
-                    };
-                    const newSession: Session = {
-                      id: nanoid(),
-                      userId: newUser.id,
                       socket: socket.id,
                       status: 'online',
-                      lastOnline:
-                        DateTime.utc().toISO() ??
-                        new Date(Date.now()).toISOString()
-                    };
-                    setItem('breezy users', [...(users ?? []), newUser]).then(
-                      (): void => {
-                        setItem('breezy sessions', [
-                          ...(sessions ?? []),
-                          newSession
-                        ]).then((): void => {
-                          const response: ClientResponse =
-                            createSuccessResponse({
-                              data: {
-                                token: sign(
-                                  {id: newUser.id, session: newSession.id},
-                                  Buffer.from(
-                                    process.env.JWT_KEY_PRIVATE_BASE64,
-                                    'base64'
-                                  ).toString(),
-                                  {
-                                    algorithm: 'RS256',
-                                    issuer: 'resen',
-                                    subject: newUser.username,
-                                    expiresIn: '8d'
-                                  }
-                                )
-                              }
-                            });
-                          logger.info({response: response}, 'signup success');
-                          return callback(response);
-                        });
+                      lastOnline: timestamp
+                    }
+                  };
+                  setItem('breezy users', [
+                    ...(users?.filter(
+                      (user): boolean => user.username !== data.username
+                    ) ?? []),
+                    newUser
+                  ]).then((): void => {
+                    const response: ClientResponse = createSuccessResponse({
+                      data: {
+                        token: sign(
+                          {id: newUser.id, session: newUser.session.id},
+                          Buffer.from(
+                            process.env.JWT_KEY_PRIVATE_BASE64,
+                            'base64'
+                          ).toString(),
+                          {
+                            algorithm: 'RS256',
+                            issuer: 'resen',
+                            subject: newUser.username
+                          }
+                        )
                       }
-                    );
+                    });
+                    logger.info({response: response}, 'signup success');
+                    return callback(response);
                   });
                 });
                 return undefined;
@@ -236,5 +230,5 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {SignUpReq, User, Session};
+export type {SignUpReq, User};
 export default signupEvent;
