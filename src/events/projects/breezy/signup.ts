@@ -164,19 +164,19 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   return callback(response);
                 }
                 hash(data.password, nanoid()).then((hashedPassword): void => {
-                  const timestamp: string =
-                    DateTime.utc().toISO() ?? new Date().toISOString();
                   const newUser: User = {
                     id: nanoid(),
                     username: data.username,
                     displayName: data.displayName,
                     password: hashedPassword,
-                    joinDate: timestamp,
+                    joinDate:
+                      DateTime.utc().toISO() ?? new Date().toISOString(),
                     session: {
                       id: nanoid(),
                       socket: socket.id,
                       status: 'online',
-                      lastOnline: timestamp
+                      lastOnline:
+                        DateTime.utc().toISO() ?? new Date().toISOString()
                     }
                   };
                   setItem('breezy users', [
