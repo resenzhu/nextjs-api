@@ -41,8 +41,10 @@ type UserSignedUpNotif = {
   id: string;
   username: string;
   displayName: string;
-  status: 'online' | 'away' | 'offline';
-  lastOnline: string;
+  session: {
+    status: 'online' | 'away' | 'offline';
+    lastOnline: string;
+  };
 };
 
 const redact: string[] = ['request.password', 'request.token'];
@@ -179,39 +181,52 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                         DateTime.utc().toISO() ?? new Date().toISOString()
                     }
                   };
-                  setItem('breezy users', [
-                    ...(users?.filter(
+                  const updatedUsers = [
+                    ...users?.filter(
                       (user): boolean => user.username !== data.username
-                    ) ?? []),
+                    ),
                     newUser
-                  ]).then((): void => {
-                    const signedUpUser: UserSignedUpNotif = {
-                      id: newUser.id,
-                      username: newUser.username,
-                      displayName: newUser.displayName,
-                      status: newUser.session.status,
-                      lastOnline: newUser.session.lastOnline
-                    };
-                    socket.broadcast.emit('user signed up', signedUpUser);
-                    const response: ClientResponse = createSuccessResponse({
-                      data: {
-                        token: sign(
-                          {id: newUser.id, session: newUser.session.id},
-                          Buffer.from(
-                            process.env.JWT_KEY_PRIVATE_BASE64,
-                            'base64'
-                          ).toString(),
-                          {
-                            algorithm: 'RS256',
-                            issuer: 'resen',
-                            subject: newUser.username
-                          }
-                        )
-                      }
-                    });
-                    logger.info({response: response}, 'signup success');
-                    return callback(response);
-                  });
+                  ];
+                  const ttl = DateTime.max(
+                    ...updatedUsers.map(
+                      (user): DateTime =>
+                        DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
+                    )
+                  )
+                    .plus({months: 1})
+                    .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                  setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                    (): void => {
+                      const signedUpUser: UserSignedUpNotif = {
+                        id: newUser.id,
+                        username: newUser.username,
+                        displayName: newUser.displayName,
+                        session: {
+                          status: newUser.session.status,
+                          lastOnline: newUser.session.lastOnline
+                        }
+                      };
+                      socket.broadcast.emit('user signed up', signedUpUser);
+                      const response: ClientResponse = createSuccessResponse({
+                        data: {
+                          token: sign(
+                            {id: newUser.id, session: newUser.session.id},
+                            Buffer.from(
+                              process.env.JWT_KEY_PRIVATE_BASE64,
+                              'base64'
+                            ).toString(),
+                            {
+                              algorithm: 'RS256',
+                              issuer: 'resen',
+                              subject: newUser.username
+                            }
+                          )
+                        }
+                      });
+                      logger.info({response: response}, 'signup success');
+                      return callback(response);
+                    }
+                  );
                 });
                 return undefined;
               });
