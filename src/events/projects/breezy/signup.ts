@@ -261,5 +261,5 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {SignUpReq, User};
+export type {SignUpReq, User, UserSignedUpNotif};
 export default signupEvent;
