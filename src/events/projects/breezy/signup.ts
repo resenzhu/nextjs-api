@@ -182,9 +182,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                     }
                   };
                   const updatedUsers = [
-                    ...users?.filter(
-                      (user): boolean => user.username !== data.username
-                    ),
+                    ...(users?.filter(
+                      (user): boolean => user.username !== newUser.username
+                    ) ?? []),
                     newUser
                   ];
                   const ttl = DateTime.max(
