@@ -15,7 +15,7 @@ const breezyRouter = (server: Server): void => {
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
         (error: VerifyErrors | null) => {
           if (error) {
-            next(new Error(error.message));
+            next(new Error(error.name));
           } else {
             next();
           }
