@@ -26,7 +26,15 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
           return user;
         });
         if (updatedUsers) {
-          setItem('breezy users', updatedUsers);
+          const ttl = DateTime.max(
+            ...updatedUsers.map(
+              (user): DateTime =>
+                DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
+            )
+          )
+            .plus({months: 1})
+            .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+          setItem('breezy users', updatedUsers, {ttl: ttl});
         }
       });
     });
