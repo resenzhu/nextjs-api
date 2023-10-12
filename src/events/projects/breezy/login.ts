@@ -130,11 +130,13 @@ const login = (socket: Socket, logger: Logger): void => {
                       logger.warn({response: response}, 'login failed');
                       return callback(response);
                     }
+                    let oldSessionSocket: string | null = null;
                     const newSessionId = nanoid();
-                    const timestamp =
+                    const timestamp: string =
                       DateTime.utc().toISO() ?? new Date().toISOString();
                     const updatedUsers = users.map((user): User => {
                       if (user.id === account.id) {
+                        oldSessionSocket = user.session.socket;
                         const updatedUser: User = {
                           ...user,
                           session: {
@@ -161,6 +163,11 @@ const login = (socket: Socket, logger: Logger): void => {
                       .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {
+                        if (oldSessionSocket) {
+                          socket.broadcast
+                            .to(oldSessionSocket)
+                            .emit('logout old session');
+                        }
                         const loggedInUser: UserLoggedInNotif = {
                           id: account.id,
                           session: {
