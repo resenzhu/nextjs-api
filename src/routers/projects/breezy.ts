@@ -1,3 +1,4 @@
+import {type VerifyErrors, verify} from 'jsonwebtoken';
 import {disconnect, login, signup} from '@events/projects/breezy';
 import type {Server} from 'socket.io';
 import logger from '@utils/logger';
@@ -6,6 +7,22 @@ import {redact as signupRedact} from '@events/projects/breezy/signup';
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
+  breezy.use((socket, next): void => {
+    const {token}: {token: string | null} = socket.handshake.auth.token;
+    if (token) {
+      verify(
+        token,
+        Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
+        (error: VerifyErrors | null) => {
+          if (error) {
+            next(new Error(error.message));
+          } else {
+            next();
+          }
+        }
+      );
+    }
+  });
   breezy.on('connection', (socket): void => {
     const breezyRedact = [...signupRedact, ...loginRedact];
     const breezyLogger = logger.child(
