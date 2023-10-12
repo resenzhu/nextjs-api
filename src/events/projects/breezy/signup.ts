@@ -165,7 +165,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   logger.warn({response: response}, 'signup failed');
                   return callback(response);
                 }
-                hash(data.password, nanoid()).then((hashedPassword): void => {
+                hash(data.password, 10).then((hashedPassword): void => {
                   const timestamp =
                     DateTime.utc().toISO() ?? new Date().toISOString();
                   const newUser: User = {
