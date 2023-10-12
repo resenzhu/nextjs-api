@@ -23,6 +23,14 @@ type LoginReq = {
   token: string;
 };
 
+type UserLoggedInNotif = {
+  id: string;
+  session: {
+    status: 'online' | 'away' | 'offline';
+    lastOnline: string;
+  };
+};
+
 const redact: string[] = ['request.password', 'request.token'];
 
 const login = (socket: Socket, logger: Logger): void => {
@@ -123,6 +131,8 @@ const login = (socket: Socket, logger: Logger): void => {
                       return callback(response);
                     }
                     const newSessionId = nanoid();
+                    const timestamp =
+                      DateTime.utc().toISO() ?? new Date().toISOString();
                     const updatedUsers = users.map((user): User => {
                       if (user.id === account.id) {
                         const updatedUser: User = {
@@ -132,34 +142,53 @@ const login = (socket: Socket, logger: Logger): void => {
                             id: newSessionId,
                             socket: socket.id,
                             status: 'online',
-                            lastOnline:
-                              DateTime.utc().toISO() ?? new Date().toISOString()
+                            lastOnline: timestamp
                           }
                         };
                         return updatedUser;
                       }
                       return user;
                     });
-                    setItem('breezy users', updatedUsers).then((): void => {
-                      const response: ClientResponse = createSuccessResponse({
-                        data: {
-                          token: sign(
-                            {id: account.id, session: newSessionId},
-                            Buffer.from(
-                              process.env.JWT_KEY_PRIVATE_BASE64,
-                              'base64'
-                            ).toString(),
-                            {
-                              algorithm: 'RS256',
-                              issuer: 'resen',
-                              subject: account.username
-                            }
-                          )
-                        }
-                      });
-                      logger.info({response: response}, 'login success');
-                      return callback(response);
-                    });
+                    const ttl = DateTime.max(
+                      ...updatedUsers.map(
+                        (user): DateTime =>
+                          DateTime.fromISO(user.session.lastOnline, {
+                            zone: 'utc'
+                          })
+                      )
+                    )
+                      .plus({months: 1})
+                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                      (): void => {
+                        const loggedInUser: UserLoggedInNotif = {
+                          id: account.id,
+                          session: {
+                            status: 'online',
+                            lastOnline: timestamp
+                          }
+                        };
+                        socket.broadcast.emit('user logged in', loggedInUser);
+                        const response: ClientResponse = createSuccessResponse({
+                          data: {
+                            token: sign(
+                              {id: account.id, session: newSessionId},
+                              Buffer.from(
+                                process.env.JWT_KEY_PRIVATE_BASE64,
+                                'base64'
+                              ).toString(),
+                              {
+                                algorithm: 'RS256',
+                                issuer: 'resen',
+                                subject: account.username
+                              }
+                            )
+                          }
+                        });
+                        logger.info({response: response}, 'login success');
+                        return callback(response);
+                      }
+                    );
                     return undefined;
                   }
                 );
@@ -195,5 +224,5 @@ const login = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {LoginReq};
+export type {LoginReq, UserLoggedInNotif};
 export default login;
