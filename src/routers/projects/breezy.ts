@@ -8,7 +8,7 @@ import {redact as signupRedact} from '@events/projects/breezy/signup';
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
   breezy.use((socket, next): void => {
-    const {token}: {token: string | null} = socket.handshake.auth.token;
+    const {token} = socket.handshake.auth;
     if (token) {
       verify(
         token,
