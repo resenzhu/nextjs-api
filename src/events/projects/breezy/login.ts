@@ -132,7 +132,7 @@ const login = (socket: Socket, logger: Logger): void => {
                     }
                     let oldSessionSocket: string | null = null;
                     const newSessionId = nanoid();
-                    const timestamp: string =
+                    const timestamp =
                       DateTime.utc().toISO() ?? new Date().toISOString();
                     const updatedUsers = users.map((user): User => {
                       if (user.id === account.id) {

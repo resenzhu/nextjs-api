@@ -166,7 +166,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   return callback(response);
                 }
                 hash(data.password, nanoid()).then((hashedPassword): void => {
-                  const timestamp: string =
+                  const timestamp =
                     DateTime.utc().toISO() ?? new Date().toISOString();
                   const newUser: User = {
                     id: nanoid(),
