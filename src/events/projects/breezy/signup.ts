@@ -166,19 +166,19 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   return callback(response);
                 }
                 hash(data.password, nanoid()).then((hashedPassword): void => {
+                  const timestamp: string =
+                    DateTime.utc().toISO() ?? new Date().toISOString();
                   const newUser: User = {
                     id: nanoid(),
                     username: data.username,
                     displayName: data.displayName,
                     password: hashedPassword,
-                    joinDate:
-                      DateTime.utc().toISO() ?? new Date().toISOString(),
+                    joinDate: timestamp,
                     session: {
                       id: nanoid(),
                       socket: socket.id,
                       status: 'online',
-                      lastOnline:
-                        DateTime.utc().toISO() ?? new Date().toISOString()
+                      lastOnline: timestamp
                     }
                   };
                   const updatedUsers = [
