@@ -34,7 +34,6 @@ const breezyRouter = (server: Server): void => {
       },
       {redact: {paths: breezyRedact, censor: '[redacted]'}}
     );
-    breezyLogger.info('socket connected');
     connect(socket, breezyLogger);
     signup(socket, breezyLogger);
     login(socket, breezyLogger);
