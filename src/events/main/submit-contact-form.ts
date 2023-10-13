@@ -176,14 +176,14 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                       return callback(response);
                     });
                   })
-                  .catch((error: Error): void => {
+                  .catch((mailjetError: Error): void => {
                     const response: ClientResponse = createErrorResponse({
                       code: '500',
                       message:
                         'an error occured while attempting to send the email.'
                     });
                     logger.warn(
-                      {response: response, error: error.message},
+                      {response: response, error: mailjetError.message},
                       'submit contact form failed'
                     );
                     return callback(response);
@@ -194,13 +194,13 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           });
           return undefined;
         })
-        .catch((error: Error): void => {
+        .catch((captchaError: Error): void => {
           const response: ClientResponse = createErrorResponse({
             code: '500',
             message: 'an error occured while attempting to verify captcha.'
           });
           logger.warn(
-            {response: response, error: error.message},
+            {response: response, error: captchaError.message},
             'submit contact form failed'
           );
           return callback(response);

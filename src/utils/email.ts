@@ -39,7 +39,7 @@ export const sendEmail = ({
       .then((): void => {
         resolve();
       })
-      .catch((error): void => {
-        reject(new Error(error.ErrorMessage));
+      .catch((mailjetError): void => {
+        reject(new Error(mailjetError.ErrorMessage));
       });
   });

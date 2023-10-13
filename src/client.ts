@@ -27,9 +27,9 @@ const call = (
 ): void => {
   socket
     .timeout(5000)
-    .emit(event, request, (error: Error, response: object): void => {
-      if (error) {
-        logger.error(error, event);
+    .emit(event, request, (socketError: Error, response: object): void => {
+      if (socketError) {
+        logger.error(socketError, event);
       } else {
         logger.info({request: request, response: response}, event);
       }

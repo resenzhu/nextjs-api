@@ -13,9 +13,9 @@ const breezyRouter = (server: Server): void => {
       verify(
         token,
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
-        (error: VerifyErrors | null) => {
-          if (error) {
-            next(new Error(error.name));
+        (jwtError: VerifyErrors | null) => {
+          if (jwtError) {
+            next(new Error(jwtError.name));
           } else {
             next();
           }

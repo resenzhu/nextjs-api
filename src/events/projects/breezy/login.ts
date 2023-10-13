@@ -201,26 +201,26 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                 );
               });
             })
-            .catch((error: Error): void => {
+            .catch((storageError: Error): void => {
               const response: ClientResponse = createErrorResponse({
                 code: '500',
                 message: 'an error occured while accessing the storage.'
               });
               logger.warn(
-                {response: response, error: error.message},
+                {response: response, error: storageError.message},
                 'login failed'
               );
               return callback(response);
             });
           return undefined;
         })
-        .catch((error: Error): void => {
+        .catch((captchaError: Error): void => {
           const response: ClientResponse = createErrorResponse({
             code: '500',
             message: 'an error occured while attempting to verify captcha.'
           });
           logger.warn(
-            {response: response, error: error.message},
+            {response: response, error: captchaError.message},
             'login failed'
           );
           return callback(response);
