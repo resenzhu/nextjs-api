@@ -21,6 +21,8 @@ const breezyRouter = (server: Server): void => {
           }
         }
       );
+    } else {
+      next();
     }
   });
   breezy.on('connection', (socket): void => {
