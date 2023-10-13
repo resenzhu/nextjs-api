@@ -33,7 +33,7 @@ type UserLoggedInNotif = {
 
 const redact: string[] = ['request.password', 'request.token'];
 
-const login = (socket: Socket, logger: Logger): void => {
+const loginEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
     'login',
     (request: LoginReq, callback: (response: ClientResponse) => void): void => {
@@ -232,4 +232,4 @@ const login = (socket: Socket, logger: Logger): void => {
 
 export {redact};
 export type {LoginReq, UserLoggedInNotif};
-export default login;
+export default loginEvent;
