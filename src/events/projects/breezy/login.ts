@@ -31,7 +31,11 @@ type UserLoggedInNotif = {
   };
 };
 
-const redact: string[] = ['request.password', 'request.token'];
+const redact: string[] = [
+  'request.password',
+  'request.token',
+  'response.token'
+];
 
 const loginEvent = (socket: Socket, logger: Logger): void => {
   socket.on(

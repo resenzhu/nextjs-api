@@ -47,7 +47,11 @@ type UserSignedUpNotif = {
   };
 };
 
-const redact: string[] = ['request.password', 'request.token'];
+const redact: string[] = [
+  'request.password',
+  'request.token',
+  'response.token'
+];
 
 const signupEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
