@@ -50,7 +50,7 @@ type UserSignedUpNotif = {
 const redact: string[] = [
   'request.password',
   'request.token',
-  'response.token'
+  'response.data.token'
 ];
 
 const signupEvent = (socket: Socket, logger: Logger): void => {
