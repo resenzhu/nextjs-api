@@ -20,12 +20,12 @@ const connectEvent = (socket: Socket, logger: Logger): void => {
   logger.info('socket connected');
   const {token} = socket.handshake.auth;
   if (token) {
-    logger.info({token: token}, 'user online');
     verify(
       token,
       Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
       // eslint-disable-next-line
       (jwtError: VerifyErrors | null, decoded: any): void => {
+        logger.info({token: token}, 'user online');
         if (jwtError) {
           logger.warn({error: jwtError.message}, 'user online failed');
           socket.disconnect();
