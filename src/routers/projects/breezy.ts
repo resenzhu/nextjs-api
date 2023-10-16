@@ -1,4 +1,10 @@
-import {connect, disconnect, login, signup} from '@events/projects/breezy';
+import {
+  connect,
+  disconnect,
+  fetchUsers,
+  login,
+  signup
+} from '@events/projects/breezy';
 import type {Server} from 'socket.io';
 import {redact as connectRedact} from '@events/projects/breezy/connect';
 import logger from '@utils/logger';
@@ -19,6 +25,7 @@ const breezyRouter = (server: Server): void => {
     connect(socket, breezyLogger);
     signup(socket, breezyLogger);
     login(socket, breezyLogger);
+    fetchUsers(socket, breezyLogger);
     disconnect(socket, breezyLogger);
   });
 };
