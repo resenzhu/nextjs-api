@@ -4,9 +4,9 @@ import {
   createSuccessResponse
 } from '@utils/response';
 import {type VerifyErrors, verify} from 'jsonwebtoken';
+import type {JWTPayload} from '@events/projects/breezy/connect';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import type {Token} from '@events/projects/breezy/connect';
 import type {User} from '@events/projects/breezy/signup';
 import {getItem} from 'node-persist';
 import {storage} from '@utils/storage';
@@ -30,16 +30,24 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, 'fetch users failed');
             return callback(response);
           }
-          const payload = decoded as Token;
+          const jwtPayload = decoded as JWTPayload;
           storage
             .then((): void => {
               getItem('breezy users').then((users: User[]): void => {
                 const response: ClientResponse = createSuccessResponse({
                   data: {
                     users:
-                      users?.filter(
-                        (user): boolean => user.id !== payload.id
-                      ) ?? []
+                      users
+                        ?.filter((user): boolean => user.id !== jwtPayload.id)
+                        .map((user): object => ({
+                          id: user.id,
+                          username: user.username,
+                          displayName: user.displayName,
+                          session: {
+                            status: user.session.status,
+                            lastOnline: user.session.lastOnline
+                          }
+                        })) ?? []
                   }
                 });
                 logger.info({response: response}, 'fetch users success');
