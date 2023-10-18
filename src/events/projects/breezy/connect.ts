@@ -6,7 +6,7 @@ import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';
 import {storage} from '@utils/storage';
 
-type Token = {
+type JWTPayload = {
   id: string;
   session: string;
   iat: number;
@@ -30,14 +30,14 @@ const connectEvent = (socket: Socket, logger: Logger): void => {
           logger.warn({error: jwtError.message}, 'user online failed');
           socket.disconnect();
         }
-        const payload = decoded as Token;
+        const jwtPayload = decoded as JWTPayload;
         storage
           .then((): void => {
             getItem('breezy users').then((users: User[]): void => {
               const updatedUsers = users?.map((user): User => {
                 if (
-                  user.id === payload.id &&
-                  user.session.id === payload.session
+                  user.id === jwtPayload.id &&
+                  user.session.id === jwtPayload.session
                 ) {
                   const updatedUser: User = {
                     ...user,
@@ -80,5 +80,5 @@ const connectEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {Token};
+export type {JWTPayload};
 export default connectEvent;
