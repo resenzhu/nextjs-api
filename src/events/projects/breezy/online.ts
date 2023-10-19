@@ -15,6 +15,8 @@ type JWTPayload = {
   sub: string;
 };
 
+const redact: string[] = ['token'];
+
 const onlineMiddleware =
   (
     logger: Logger
@@ -25,12 +27,12 @@ const onlineMiddleware =
   (socket, next): void => {
     const {token} = socket.handshake.auth;
     if (token) {
+      logger.info({token: token}, 'user online');
       verify(
         token ?? '',
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
         // eslint-disable-next-line
         (jwtError: VerifyErrors | null, decoded: any): void => {
-          logger.info({token: token}, 'user online');
           if (jwtError) {
             logger.warn({error: jwtError.message}, 'user online failed');
             next(new Error(jwtError.name));
@@ -90,5 +92,6 @@ const onlineMiddleware =
     }
   };
 
+export {redact};
 export type {JWTPayload};
 export default onlineMiddleware;
