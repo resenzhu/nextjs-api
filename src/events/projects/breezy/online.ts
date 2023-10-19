@@ -75,6 +75,7 @@ const onlineMiddleware =
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {
                         logger.info('user online success');
+                        next();
                       }
                     );
                   }
