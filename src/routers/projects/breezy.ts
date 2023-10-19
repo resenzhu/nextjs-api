@@ -22,7 +22,6 @@ const breezyRouter = (server: Server): void => {
     )
   );
   breezy.on('connection', (socket): void => {
-    logger.info('socket connected');
     const breezyLogger = logger.child(
       {
         namespace: 'project/breezy',
@@ -30,6 +29,7 @@ const breezyRouter = (server: Server): void => {
       },
       {redact: {paths: [...signupRedact, ...loginRedact], censor: '[redacted]'}}
     );
+    breezyLogger.info('socket connected');
     signup(socket, breezyLogger);
     login(socket, breezyLogger);
     fetchUsers(socket, breezyLogger);
