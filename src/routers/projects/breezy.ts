@@ -1,20 +1,21 @@
 import {
-  connect,
   disconnect,
   fetchUsers,
   login,
+  online,
   signup
 } from '@events/projects/breezy';
 import type {Server} from 'socket.io';
-import {redact as connectRedact} from '@events/projects/breezy/connect';
 import logger from '@utils/logger';
 import {redact as loginRedact} from '@events/projects/breezy/login';
 import {redact as signupRedact} from '@events/projects/breezy/signup';
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
+  breezy.use(online(logger));
   breezy.on('connection', (socket): void => {
-    const breezyRedact = [...connectRedact, ...signupRedact, ...loginRedact];
+    logger.info('socket connected');
+    const breezyRedact = [...signupRedact, ...loginRedact];
     const breezyLogger = logger.child(
       {
         namespace: 'project/breezy',
@@ -22,7 +23,6 @@ const breezyRouter = (server: Server): void => {
       },
       {redact: {paths: breezyRedact, censor: '[redacted]'}}
     );
-    connect(socket, breezyLogger);
     signup(socket, breezyLogger);
     login(socket, breezyLogger);
     fetchUsers(socket, breezyLogger);
