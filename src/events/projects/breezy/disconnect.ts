@@ -9,7 +9,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
   socket.on('disconnect', (): void => {
     logger.info('socket disconnected');
     storage.then((): void => {
-      getItem('breezy users').then((users: User[]): void => {
+      getItem('breezy users').then((users: User[] | undefined): void => {
         const updatedUsers = users?.map((user): User => {
           if (user.session.socket === socket.id) {
             const updatedUser: User = {

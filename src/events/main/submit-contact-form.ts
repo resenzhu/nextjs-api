@@ -131,7 +131,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           }
           storage.then((): void => {
             getItem('main contact form submissions').then(
-              (submissions: Submission[]): void => {
+              (submissions: Submission[] | undefined): void => {
                 const todaySubmissions = submissions?.filter(
                   (submission): boolean =>
                     submission.submitter === btoa(userAgent) &&

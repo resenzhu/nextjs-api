@@ -111,99 +111,102 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
           }
           storage
             .then((): void => {
-              getItem('breezy users').then((users: User[]): void => {
-                const account = users?.find(
-                  (user): boolean =>
-                    user.username === data.username &&
-                    DateTime.utc()
-                      .endOf('day')
-                      .diff(
-                        DateTime.fromISO(user.session.lastOnline)
-                          .toUTC()
-                          .startOf('day'),
-                        ['months']
-                      ).months <= 1
-                );
-                compare(data.password, account?.password ?? '').then(
-                  (correctPassword): void => {
-                    if (!account || !correctPassword) {
-                      const response: ClientResponse = createErrorResponse({
-                        code: '401',
-                        message: 'invalid username or password.'
-                      });
-                      logger.warn({response: response}, 'login failed');
-                      return callback(response);
-                    }
-                    let oldSessionSocket: string | null = null;
-                    const newSessionId = nanoid();
-                    const timestamp =
-                      DateTime.utc().toISO() ?? new Date().toISOString();
-                    const updatedUsers = users.map((user): User => {
-                      if (user.id === account.id) {
-                        oldSessionSocket = user.session.socket;
-                        const updatedUser: User = {
-                          ...user,
-                          session: {
-                            ...user.session,
-                            id: newSessionId,
-                            socket: socket.id,
-                            status: 'online',
-                            lastOnline: timestamp
-                          }
-                        };
-                        return updatedUser;
-                      }
-                      return user;
-                    });
-                    const ttl = DateTime.max(
-                      ...updatedUsers.map(
-                        (user): DateTime =>
-                          DateTime.fromISO(user.session.lastOnline, {
-                            zone: 'utc'
-                          })
-                      )
-                    )
-                      .plus({months: 1})
-                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                      (): void => {
-                        if (oldSessionSocket) {
-                          socket.broadcast
-                            .to(oldSessionSocket)
-                            .emit('logout old session');
-                        }
-                        const loggedInUser: UserLoggedInNotif = {
-                          id: account.id,
-                          session: {
-                            status: 'online',
-                            lastOnline: timestamp
-                          }
-                        };
-                        socket.broadcast.emit('user logged in', loggedInUser);
-                        const response: ClientResponse = createSuccessResponse({
-                          data: {
-                            token: sign(
-                              {id: account.id, session: newSessionId},
-                              Buffer.from(
-                                process.env.JWT_KEY_PRIVATE_BASE64,
-                                'base64'
-                              ).toString(),
-                              {
-                                algorithm: 'RS256',
-                                issuer: 'resen',
-                                subject: account.username
-                              }
-                            )
-                          }
+              getItem('breezy users').then(
+                (users: User[] | undefined): void => {
+                  const account = users?.find(
+                    (user): boolean =>
+                      user.username === data.username &&
+                      DateTime.utc()
+                        .endOf('day')
+                        .diff(
+                          DateTime.fromISO(user.session.lastOnline)
+                            .toUTC()
+                            .startOf('day'),
+                          ['months']
+                        ).months <= 1
+                  );
+                  compare(data.password, account?.password ?? '').then(
+                    (correctPassword): void => {
+                      if (!users || !account || !correctPassword) {
+                        const response: ClientResponse = createErrorResponse({
+                          code: '401',
+                          message: 'invalid username or password.'
                         });
-                        logger.info({response: response}, 'login success');
+                        logger.warn({response: response}, 'login failed');
                         return callback(response);
                       }
-                    );
-                    return undefined;
-                  }
-                );
-              });
+                      let oldSessionSocket: string | null = null;
+                      const newSessionId = nanoid();
+                      const timestamp =
+                        DateTime.utc().toISO() ?? new Date().toISOString();
+                      const updatedUsers = users.map((user): User => {
+                        if (user.id === account.id) {
+                          oldSessionSocket = user.session.socket;
+                          const updatedUser: User = {
+                            ...user,
+                            session: {
+                              ...user.session,
+                              id: newSessionId,
+                              socket: socket.id,
+                              status: 'online',
+                              lastOnline: timestamp
+                            }
+                          };
+                          return updatedUser;
+                        }
+                        return user;
+                      });
+                      const ttl = DateTime.max(
+                        ...updatedUsers.map(
+                          (user): DateTime =>
+                            DateTime.fromISO(user.session.lastOnline, {
+                              zone: 'utc'
+                            })
+                        )
+                      )
+                        .plus({months: 1})
+                        .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                      setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                        (): void => {
+                          if (oldSessionSocket) {
+                            socket.broadcast
+                              .to(oldSessionSocket)
+                              .emit('logout old session');
+                          }
+                          const loggedInUser: UserLoggedInNotif = {
+                            id: account.id,
+                            session: {
+                              status: 'online',
+                              lastOnline: timestamp
+                            }
+                          };
+                          socket.broadcast.emit('user logged in', loggedInUser);
+                          const response: ClientResponse =
+                            createSuccessResponse({
+                              data: {
+                                token: sign(
+                                  {id: account.id, session: newSessionId},
+                                  Buffer.from(
+                                    process.env.JWT_KEY_PRIVATE_BASE64,
+                                    'base64'
+                                  ).toString(),
+                                  {
+                                    algorithm: 'RS256',
+                                    issuer: 'resen',
+                                    subject: account.username
+                                  }
+                                )
+                              }
+                            });
+                          logger.info({response: response}, 'login success');
+                          return callback(response);
+                        }
+                      );
+                      return undefined;
+                    }
+                  );
+                }
+              );
             })
             .catch((storageError: Error): void => {
               const response: ClientResponse = createErrorResponse({

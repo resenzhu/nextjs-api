@@ -5,7 +5,7 @@ import {
 } from '@utils/response';
 import type {User, UserSignedUpNotif} from '@events/projects/breezy/signup';
 import {type VerifyErrors, verify} from 'jsonwebtoken';
-import type {JWTPayload} from '@events/projects/breezy/connect';
+import type {JWTPayload} from '@events/projects/breezy/online';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import {getItem} from 'node-persist';
@@ -33,26 +33,30 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
           const jwtPayload = decoded as JWTPayload;
           storage
             .then((): void => {
-              getItem('breezy users').then((users: User[]): void => {
-                const response: ClientResponse = createSuccessResponse({
-                  data: {
-                    users:
-                      users
-                        ?.filter((user): boolean => user.id !== jwtPayload.id)
-                        .map((user): UserSignedUpNotif => ({
-                          id: user.id,
-                          username: user.username,
-                          displayName: user.displayName,
-                          session: {
-                            status: user.session.status,
-                            lastOnline: user.session.lastOnline
-                          }
-                        })) ?? []
-                  }
-                });
-                logger.info({response: response}, 'fetch users success');
-                return callback(response);
-              });
+              getItem('breezy users').then(
+                (users: User[] | undefined): void => {
+                  const response: ClientResponse = createSuccessResponse({
+                    data: {
+                      users:
+                        users
+                          ?.filter((user): boolean => user.id !== jwtPayload.id)
+                          .map(
+                            (user): UserSignedUpNotif => ({
+                              id: user.id,
+                              username: user.username,
+                              displayName: user.displayName,
+                              session: {
+                                status: user.session.status,
+                                lastOnline: user.session.lastOnline
+                              }
+                            })
+                          ) ?? []
+                    }
+                  });
+                  logger.info({response: response}, 'fetch users success');
+                  return callback(response);
+                }
+              );
             })
             .catch((storageError: Error): void => {
               const response: ClientResponse = createErrorResponse({
