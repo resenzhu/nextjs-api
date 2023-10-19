@@ -8,19 +8,11 @@ import {
 import type {Server} from 'socket.io';
 import logger from '@utils/logger';
 import {redact as loginRedact} from '@events/projects/breezy/login';
-import {redact as onlineRedact} from '@events/projects/breezy/online';
 import {redact as signupRedact} from '@events/projects/breezy/signup';
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
-  breezy.use(
-    online(
-      logger.child(
-        {namespace: 'project/breezy'},
-        {redact: {paths: [...onlineRedact], censor: '[redacted]'}}
-      )
-    )
-  );
+  breezy.use(online(logger));
   breezy.on('connection', (socket): void => {
     const breezyLogger = logger.child(
       {
