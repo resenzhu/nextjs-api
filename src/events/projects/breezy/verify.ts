@@ -17,7 +17,7 @@ type JWTPayload = {
 
 const redact: string[] = ['token'];
 
-const onlineMiddleware =
+const verifyMiddleware =
   (
     logger: Logger
   ): ((
@@ -34,14 +34,14 @@ const onlineMiddleware =
     );
     const {token} = socket.handshake.auth;
     if (token) {
-      breezyLogger.info({token: token}, 'user online');
+      breezyLogger.info({token: token}, 'verify token');
       verify(
         token ?? '',
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
         // eslint-disable-next-line
         (jwtError: VerifyErrors | null, decoded: any): void => {
           if (jwtError) {
-            breezyLogger.warn({error: jwtError.message}, 'user online failed');
+            breezyLogger.warn({error: jwtError.message}, 'verify token failed');
             next(new Error(jwtError.name));
           }
           const jwtPayload = decoded as JWTPayload;
@@ -81,7 +81,7 @@ const onlineMiddleware =
                       .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {
-                        breezyLogger.info('user online success');
+                        breezyLogger.info('verify token success');
                         next();
                       }
                     );
@@ -92,7 +92,7 @@ const onlineMiddleware =
             .catch((storageError: Error): void => {
               breezyLogger.warn(
                 {error: storageError.message},
-                'user online failed'
+                'verify token failed'
               );
               next(new Error(storageError.message));
             });
@@ -105,4 +105,4 @@ const onlineMiddleware =
 
 export {redact};
 export type {JWTPayload};
-export default onlineMiddleware;
+export default verifyMiddleware;

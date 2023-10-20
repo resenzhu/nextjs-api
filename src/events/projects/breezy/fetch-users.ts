@@ -5,7 +5,7 @@ import {
 } from '@utils/response';
 import type {User, UserSignedUpNotif} from '@events/projects/breezy/signup';
 import {type VerifyErrors, verify} from 'jsonwebtoken';
-import type {JWTPayload} from '@events/projects/breezy/online';
+import type {JWTPayload} from '@events/projects/breezy/verify';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import {getItem} from 'node-persist';
