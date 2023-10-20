@@ -1,2 +1,0 @@
-// FIXME check user 01 fething again after user 02 signed up.
-// TODO change ttl from one month to two weeks.

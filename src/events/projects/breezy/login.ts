@@ -164,7 +164,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             })
                         )
                       )
-                        .plus({months: 1})
+                        .plus({weeks: 2})
                         .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                       setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                         (): void => {
