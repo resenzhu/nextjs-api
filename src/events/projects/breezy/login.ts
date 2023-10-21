@@ -122,8 +122,8 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                           DateTime.fromISO(user.session.lastOnline)
                             .toUTC()
                             .startOf('day'),
-                          ['months']
-                        ).months <= 1
+                          ['weeks']
+                        ).weeks <= 2
                   );
                   compare(data.password, account?.password ?? '').then(
                     (correctPassword): void => {
