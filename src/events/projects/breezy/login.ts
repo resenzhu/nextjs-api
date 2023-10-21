@@ -14,13 +14,13 @@ import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
 import {sign} from 'jsonwebtoken';
 import {storage} from '@utils/storage';
-import {verifyReCaptcha} from '@utils/recaptcha';
+import {verifyRecaptcha} from '@utils/recaptcha';
 
 type LoginReq = {
   username: string;
   password: string;
   honeypot: string;
-  token: string;
+  recaptcha: string;
 };
 
 type UserLoggedInNotif = {
@@ -33,7 +33,7 @@ type UserLoggedInNotif = {
 
 const redact: string[] = [
   'request.password',
-  'request.token',
+  'request.recaptcha',
   'response.data.token'
 ];
 
@@ -74,10 +74,10 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
           'string.length': "4220302|'honeypot' must be empty.",
           'any.required': "40003|'honeypot' is required."
         }),
-        token: joi.string().required().messages({
-          'string.base': "4220401|'token' must be a string.",
-          'string.empty': "4220402|'token' must not be empty.",
-          'any.required': "40004|'token' is required."
+        recaptcha: joi.string().required().messages({
+          'string.base': "4220401|'recaptcha' must be a string.",
+          'string.empty': "4220402|'recaptcha' must not be empty.",
+          'any.required': "40004|'recaptcha' is required."
         })
       });
       const {value: validatedValue, error: validationError} =
@@ -94,11 +94,11 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
       data = {
         ...data,
         username: sanitize(data.username).trim().toLowerCase(),
-        token: sanitize(data.token).trim()
+        recaptcha: sanitize(data.recaptcha).trim()
       };
-      verifyReCaptcha({
+      verifyRecaptcha({
         version: 2,
-        token: data.token
+        recaptcha: data.recaptcha
       })
         .then((success): void => {
           if (!success) {

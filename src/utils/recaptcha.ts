@@ -1,11 +1,11 @@
 import axios from 'axios';
 
-export const verifyReCaptcha = ({
+export const verifyRecaptcha = ({
   version,
-  token
+  recaptcha
 }: {
   version: 2 | 3;
-  token: string;
+  recaptcha: string;
 }): Promise<boolean | number | string> =>
   new Promise<boolean | number | string>((resolve, reject): void => {
     axios
@@ -16,7 +16,7 @@ export const verifyReCaptcha = ({
             version === 2
               ? process.env.GOOGLE_RECAPTCHA_KEY_V2_CHECKBOX
               : process.env.GOOGLE_RECAPTCHA_KEY_V3,
-          response: token
+          response: recaptcha
         })
       )
       .then((response): void => {

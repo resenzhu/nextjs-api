@@ -11,14 +11,14 @@ import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
 import {sendEmail} from '@utils/email';
 import {storage} from '@utils/storage';
-import {verifyReCaptcha} from '@utils/recaptcha';
+import {verifyRecaptcha} from '@utils/recaptcha';
 
 type SubmitContactFormReq = {
   name: string;
   email: string;
   message: string;
   honeypot: string;
-  token: string;
+  recaptcha: string;
 };
 
 type Submission = {
@@ -26,7 +26,7 @@ type Submission = {
   timestamp: string;
 };
 
-const redact: string[] = ['request.name', 'request.email', 'request.token'];
+const redact: string[] = ['request.name', 'request.email', 'request.recaptcha'];
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
   socket.on(
@@ -76,10 +76,10 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           'string.length': "4220402|'honeypot' must be empty.",
           'any.required': "40004|'honeypot' is required."
         }),
-        token: joi.string().required().messages({
-          'string.base': "4220501|'token' must be a string.",
-          'string.empty': "4220502|'token' must not be empty.",
-          'any.required': "40005|'token' is required."
+        recaptcha: joi.string().required().messages({
+          'string.base': "4220501|'recaptcha' must be a string.",
+          'string.empty': "4220502|'recaptcha' must not be empty.",
+          'any.required': "40005|'recaptcha' is required."
         })
       });
       const {value: validatedValue, error: validationError} =
@@ -105,11 +105,11 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           .join(' '),
         email: sanitize(data.email).trim().toLowerCase(),
         message: sanitize(data.message).trim(),
-        token: sanitize(data.token).trim()
+        recaptcha: sanitize(data.recaptcha).trim()
       };
-      verifyReCaptcha({
+      verifyRecaptcha({
         version: 3,
-        token: data.token
+        recaptcha: data.recaptcha
       })
         .then((score): void => {
           if (Number(score) <= 0.5) {
