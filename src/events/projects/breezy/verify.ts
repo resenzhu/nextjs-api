@@ -77,7 +77,7 @@ const verifyMiddleware =
                           })
                       )
                     )
-                      .plus({weeks: 2})
+                      .plus({weeks: 1})
                       .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {

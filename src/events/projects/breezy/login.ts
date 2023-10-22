@@ -123,7 +123,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             .toUTC()
                             .startOf('day'),
                           ['weeks']
-                        ).weeks <= 2
+                        ).weeks <= 1
                   );
                   compare(data.password, account?.password ?? '').then(
                     (correctPassword): void => {
@@ -164,7 +164,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             })
                         )
                       )
-                        .plus({weeks: 2})
+                        .plus({weeks: 1})
                         .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                       setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                         (): void => {

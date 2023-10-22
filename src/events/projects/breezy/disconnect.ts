@@ -32,7 +32,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
                 DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
             )
           )
-            .plus({weeks: 2})
+            .plus({weeks: 1})
             .diff(DateTime.utc(), ['milliseconds']).milliseconds;
           setItem('breezy users', updatedUsers, {ttl: ttl});
         }
