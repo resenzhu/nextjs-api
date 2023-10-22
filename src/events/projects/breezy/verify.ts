@@ -42,33 +42,33 @@ const verifyMiddleware =
         (jwtError: VerifyErrors | null, decoded: any): void => {
           if (jwtError) {
             breezyLogger.warn({error: jwtError.message}, 'verify token failed');
-            next(new Error(jwtError.name));
+            next(new Error('JWTError'));
           }
           const jwtPayload = decoded as JWTPayload;
           storage
             .then((): void => {
               getItem('breezy users').then(
                 (users: User[] | undefined): void => {
-                  const updatedUsers = users?.map((user): User => {
-                    if (
-                      user.id === jwtPayload.id &&
-                      user.session.id === jwtPayload.session
-                    ) {
-                      const updatedUser: User = {
-                        ...user,
-                        session: {
-                          ...user.session,
-                          socket: socket.id,
-                          status: 'online',
-                          lastOnline:
-                            DateTime.utc().toISO() ?? new Date().toISOString()
-                        }
-                      };
-                      return updatedUser;
-                    }
-                    return user;
-                  });
-                  if (updatedUsers) {
+                  if (users) {
+                    const updatedUsers = users.map((user): User => {
+                      if (
+                        user.id === jwtPayload.id &&
+                        user.session.id === jwtPayload.session
+                      ) {
+                        const updatedUser: User = {
+                          ...user,
+                          session: {
+                            ...user.session,
+                            socket: socket.id,
+                            status: 'online',
+                            lastOnline:
+                              DateTime.utc().toISO() ?? new Date().toISOString()
+                          }
+                        };
+                        return updatedUser;
+                      }
+                      return user;
+                    });
                     const ttl = DateTime.max(
                       ...updatedUsers.map(
                         (user): DateTime =>
@@ -85,6 +85,12 @@ const verifyMiddleware =
                         next();
                       }
                     );
+                  } else {
+                    breezyLogger.warn(
+                      {error: "'users' is undefined."},
+                      'verify token failed'
+                    );
+                    next(new Error('UndefinedError'));
                   }
                 }
               );
@@ -94,7 +100,7 @@ const verifyMiddleware =
                 {error: storageError.message},
                 'verify token failed'
               );
-              next(new Error(storageError.message));
+              next(new Error('StorageError'));
             });
         }
       );
