@@ -15,6 +15,16 @@ type JWTPayload = {
   sub: string;
 };
 
+type UserOnlineNotif = {
+  user: {
+    id: string;
+    session: {
+      status: 'online' | 'away' | 'offline';
+      lastOnline: string;
+    };
+  };
+};
+
 const redact: string[] = ['token'];
 
 const verifyMiddleware =
@@ -50,6 +60,7 @@ const verifyMiddleware =
               getItem('breezy users').then(
                 (users: User[] | undefined): void => {
                   if (users) {
+                    let onlineUser: User | null = null;
                     const updatedUsers = users.map((user): User => {
                       if (
                         user.id === jwtPayload.id &&
@@ -65,6 +76,7 @@ const verifyMiddleware =
                               DateTime.utc().toISO() ?? new Date().toISOString()
                           }
                         };
+                        onlineUser = updatedUser;
                         return updatedUser;
                       }
                       return user;
@@ -81,6 +93,18 @@ const verifyMiddleware =
                       .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {
+                        if (onlineUser) {
+                          const userOnlineNotif: UserOnlineNotif = {
+                            user: {
+                              id: onlineUser.id,
+                              session: {
+                                status: onlineUser.session.status,
+                                lastOnline: onlineUser.session.lastOnline
+                              }
+                            }
+                          };
+                          socket.broadcast.emit('user online', userOnlineNotif);
+                        }
                         breezyLogger.info('verify token success');
                         next();
                       }
