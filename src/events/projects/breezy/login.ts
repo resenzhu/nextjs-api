@@ -24,10 +24,12 @@ type LoginReq = {
 };
 
 type UserLoggedInNotif = {
-  id: string;
-  session: {
-    status: 'online' | 'away' | 'offline';
-    lastOnline: string;
+  user: {
+    id: string;
+    session: {
+      status: 'online' | 'away' | 'offline';
+      lastOnline: string;
+    };
   };
 };
 
@@ -173,14 +175,19 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               .to(oldSessionSocket)
                               .emit('logout old session');
                           }
-                          const loggedInUser: UserLoggedInNotif = {
-                            id: account.id,
-                            session: {
-                              status: 'online',
-                              lastOnline: timestamp
+                          const userLoggedInNotif: UserLoggedInNotif = {
+                            user: {
+                              id: account.id,
+                              session: {
+                                status: 'online',
+                                lastOnline: timestamp
+                              }
                             }
                           };
-                          socket.broadcast.emit('user logged in', loggedInUser);
+                          socket.broadcast.emit(
+                            'user logged in',
+                            userLoggedInNotif
+                          );
                           const response: ClientResponse =
                             createSuccessResponse({
                               data: {

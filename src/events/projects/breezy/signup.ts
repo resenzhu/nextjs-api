@@ -38,12 +38,14 @@ type User = {
 };
 
 type UserSignedUpNotif = {
-  id: string;
-  username: string;
-  displayName: string;
-  session: {
-    status: 'online' | 'away' | 'offline';
-    lastOnline: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string;
+    session: {
+      status: 'online' | 'away' | 'offline';
+      lastOnline: string;
+    };
   };
 };
 
@@ -204,16 +206,21 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                       .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                     setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                       (): void => {
-                        const signedUpUser: UserSignedUpNotif = {
-                          id: newUser.id,
-                          username: newUser.username,
-                          displayName: newUser.displayName,
-                          session: {
-                            status: newUser.session.status,
-                            lastOnline: newUser.session.lastOnline
+                        const userSignedUpNotif: UserSignedUpNotif = {
+                          user: {
+                            id: newUser.id,
+                            username: newUser.username,
+                            displayName: newUser.displayName,
+                            session: {
+                              status: newUser.session.status,
+                              lastOnline: newUser.session.lastOnline
+                            }
                           }
                         };
-                        socket.broadcast.emit('user signed up', signedUpUser);
+                        socket.broadcast.emit(
+                          'user signed up',
+                          userSignedUpNotif
+                        );
                         const response: ClientResponse = createSuccessResponse({
                           data: {
                             token: sign(
