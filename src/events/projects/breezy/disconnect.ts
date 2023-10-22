@@ -66,4 +66,5 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
   });
 };
 
+export type {UserOfflineNotif};
 export default disconnectEvent;

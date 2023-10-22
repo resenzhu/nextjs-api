@@ -134,5 +134,5 @@ const verifyMiddleware =
   };
 
 export {redact};
-export type {JWTPayload};
+export type {JWTPayload, UserOnlineNotif};
 export default verifyMiddleware;
