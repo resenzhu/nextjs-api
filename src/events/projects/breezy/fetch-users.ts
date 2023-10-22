@@ -42,12 +42,14 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
                           ?.filter((user): boolean => user.id !== jwtPayload.id)
                           .map(
                             (user): UserSignedUpNotif => ({
-                              id: user.id,
-                              username: user.username,
-                              displayName: user.displayName,
-                              session: {
-                                status: user.session.status,
-                                lastOnline: user.session.lastOnline
+                              user: {
+                                id: user.id,
+                                username: user.username,
+                                displayName: user.displayName,
+                                session: {
+                                  status: user.session.status,
+                                  lastOnline: user.session.lastOnline
+                                }
                               }
                             })
                           ) ?? []
