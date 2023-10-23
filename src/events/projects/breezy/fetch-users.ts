@@ -3,11 +3,11 @@ import {
   createErrorResponse,
   createSuccessResponse
 } from '@utils/response';
-import type {User, UserSignedUpNotif} from '@events/projects/breezy/signup';
 import {type VerifyErrors, verify} from 'jsonwebtoken';
 import type {JWTPayload} from '@events/projects/breezy/verify';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
+import type {User} from '@events/projects/breezy/signup';
 import {getItem} from 'node-persist';
 import {storage} from '@utils/storage';
 
@@ -41,15 +41,13 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
                         users
                           ?.filter((user): boolean => user.id !== jwtPayload.id)
                           .map(
-                            (user): UserSignedUpNotif => ({
-                              user: {
-                                id: user.id,
-                                username: user.username,
-                                displayName: user.displayName,
-                                session: {
-                                  status: user.session.status,
-                                  lastOnline: user.session.lastOnline
-                                }
+                            (user): object => ({
+                              id: user.id,
+                              username: user.username,
+                              displayName: user.displayName,
+                              session: {
+                                status: user.session.status,
+                                lastOnline: user.session.lastOnline
                               }
                             })
                           ) ?? []
