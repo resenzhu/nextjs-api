@@ -234,7 +234,16 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                 issuer: 'resen',
                                 subject: newUser.username
                               }
-                            )
+                            ),
+                            user: {
+                              id: newUser.id,
+                              username: newUser.username,
+                              displayName: newUser.displayName,
+                              session: {
+                                status: newUser.session.status,
+                                lastOnline: newUser.session.lastOnline
+                              }
+                            }
                           }
                         });
                         logger.info({response: response}, 'signup success');
