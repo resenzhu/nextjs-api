@@ -40,17 +40,15 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
                       users:
                         users
                           ?.filter((user): boolean => user.id !== jwtPayload.id)
-                          .map(
-                            (user): object => ({
-                              id: user.id,
-                              username: user.username,
-                              displayName: user.displayName,
-                              session: {
-                                status: user.session.status,
-                                lastOnline: user.session.lastOnline
-                              }
-                            })
-                          ) ?? []
+                          .map((user): object => ({
+                            id: user.id,
+                            username: user.username,
+                            displayName: user.displayName,
+                            session: {
+                              status: user.session.status,
+                              lastOnline: user.session.lastOnline
+                            }
+                          })) ?? []
                     }
                   });
                   logger.info({response: response}, 'fetch users success');
