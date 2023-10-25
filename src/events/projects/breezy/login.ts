@@ -202,16 +202,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                     issuer: 'resen',
                                     subject: account.username
                                   }
-                                ),
-                                user: {
-                                  id: account.id,
-                                  username: account.username,
-                                  displayName: account.displayName,
-                                  session: {
-                                    status: userLoggedInNotif.user.session.status,
-                                    lastOnline: userLoggedInNotif.user.session.lastOnline
-                                  }
-                                }
+                                )
                               }
                             });
                           logger.info({response: response}, 'login success');
