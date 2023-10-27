@@ -53,7 +53,7 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
                         : undefined
                     }
                   });
-                  logger.info({response: response}, 'fetch users success');
+                  logger.info({response: response}, 'fetch profile success');
                   return callback(response);
                 }
               );
@@ -65,7 +65,7 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
               });
               logger.warn(
                 {response: response, error: storageError.message},
-                'fetch users failed'
+                'fetch profile failed'
               );
               return callback(response);
             });
