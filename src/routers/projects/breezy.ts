@@ -1,5 +1,6 @@
 import {
   disconnect,
+  fetchProfile,
   fetchUsers,
   login,
   signup,
@@ -25,6 +26,7 @@ const breezyRouter = (server: Server): void => {
     signup(socket, breezyLogger);
     login(socket, breezyLogger);
     fetchUsers(socket, breezyLogger);
+    fetchProfile(socket, breezyLogger);
     disconnect(socket, breezyLogger);
   });
 };
