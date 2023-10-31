@@ -71,7 +71,6 @@ const verifyMiddleware =
                           session: {
                             ...user.session,
                             socket: socket.id,
-                            status: 'online',
                             lastOnline:
                               DateTime.utc().toISO() ?? new Date().toISOString()
                           }
@@ -98,7 +97,7 @@ const verifyMiddleware =
                             user: {
                               id: onlineUser.id,
                               session: {
-                                status: onlineUser.session.status,
+                                status: onlineUser.session.status.replace('appear', '').trim() as 'online' | 'away' | 'offline',
                                 lastOnline: onlineUser.session.lastOnline
                               }
                             }
