@@ -28,7 +28,7 @@ const breezyRouter = (server: Server): void => {
     login(socket, breezyLogger);
     fetchUsers(socket, breezyLogger);
     fetchProfile(socket, breezyLogger);
-    updateUserStatus(socket, breezyLogger);
+    updateUserStatus(socket);
     disconnect(socket, breezyLogger);
   });
 };
