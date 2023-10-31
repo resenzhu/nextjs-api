@@ -32,7 +32,7 @@ type User = {
   session: {
     id: string;
     socket: string | null;
-    status: 'online' | 'away' | 'offline';
+    status: 'online' | 'away' | 'appear away' | 'offline' | 'appear offline';
     lastOnline: string;
   };
 };
@@ -212,7 +212,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                             username: newUser.username,
                             displayName: newUser.displayName,
                             session: {
-                              status: newUser.session.status,
+                              status: newUser.session.status
+                                .replace('appear', '')
+                                .trim() as 'online' | 'away' | 'offline',
                               lastOnline: newUser.session.lastOnline
                             }
                           }

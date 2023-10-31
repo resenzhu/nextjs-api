@@ -138,6 +138,8 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                         return callback(response);
                       }
                       let oldSessionSocket: string | null = null;
+                      let sessionStatus: typeof account.session.status =
+                        'online';
                       const newSessionId = nanoid();
                       const timestamp =
                         DateTime.utc().toISO() ?? new Date().toISOString();
@@ -150,10 +152,14 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               ...user.session,
                               id: newSessionId,
                               socket: socket.id,
-                              status: 'online',
+                              status:
+                                user.session.status === 'offline'
+                                  ? sessionStatus
+                                  : user.session.status,
                               lastOnline: timestamp
                             }
                           };
+                          sessionStatus = updatedUser.session.status;
                           return updatedUser;
                         }
                         return user;
@@ -179,7 +185,9 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             user: {
                               id: account.id,
                               session: {
-                                status: 'online',
+                                status: sessionStatus
+                                  .replace('appear', '')
+                                  .trim() as 'online' | 'away' | 'offline',
                                 lastOnline: timestamp
                               }
                             }
