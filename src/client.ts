@@ -70,11 +70,15 @@ const mainEvent: {
 };
 
 const breezyEvent: {
+  fetchUsers: () => void;
   login: () => void;
   signup: () => void;
   skip: () => void;
   updateUserStatus: () => void;
 } = {
+  fetchUsers: (): void => {
+    call(breezySocket, 'fetch users');
+  },
   login: (): void => {
     call(breezySocket, 'login', {
       username: '',
