@@ -1,4 +1,9 @@
-import {names, uniqueNamesGenerator} from 'unique-names-generator';
+import {
+  animals,
+  colors,
+  names,
+  uniqueNamesGenerator
+} from 'unique-names-generator';
 import {LoremIpsum} from 'lorem-ipsum';
 import {Manager} from 'socket.io-client';
 import {config} from 'dotenv';
@@ -40,6 +45,7 @@ const call = (
 
 const mainEvent: {
   askChatbot: () => void;
+  skip: () => void;
   submitContactForm: () => void;
 } = {
   askChatbot: (): void => {
@@ -47,6 +53,7 @@ const mainEvent: {
       input: 'hello'
     });
   },
+  skip: (): void => {}, // eslint-disable-line
   submitContactForm: (): void => {
     const name = uniqueNamesGenerator({
       dictionaries: [names, names, names],
@@ -62,11 +69,34 @@ const mainEvent: {
   }
 };
 
-const breezyEvent: {updateUserStatus: () => void} = {
+const breezyEvent: {
+  signup: () => void;
+  skip: () => void;
+  updateUserStatus: () => void;
+} = {
+  signup: (): void => {
+    const name = uniqueNamesGenerator({
+      dictionaries: [names, names],
+      length: Math.floor(Math.random() * 2 + 1),
+      separator: ' '
+    });
+    const password = uniqueNamesGenerator({
+      dictionaries: [colors, animals],
+      length: 2
+    });
+    call(breezySocket, 'signup', {
+      username: name.split(' ')[0]?.toLowerCase(),
+      displayName: name,
+      password: password,
+      honeypot: '',
+      recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
+    });
+  },
+  skip: (): void => {}, // eslint-disable-line
   updateUserStatus: (): void => {
     call(breezySocket, 'update user status', {status: 'appear away'});
   }
 };
 
-mainEvent.askChatbot();
-breezyEvent.updateUserStatus();
+mainEvent.skip();
+breezyEvent.signup();
