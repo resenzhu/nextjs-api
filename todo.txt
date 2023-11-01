@@ -1,1 +1,2 @@
-// TODO change status when users online and offline for client users menu.
+// TODO update fetch users in client.ts.
+// TODO update fetch user status.
