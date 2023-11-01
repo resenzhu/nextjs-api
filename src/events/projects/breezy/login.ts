@@ -137,15 +137,15 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                         logger.warn({response: response}, 'login failed');
                         return callback(response);
                       }
-                      let oldSessionSocket: string | null = null;
-                      let sessionStatus: typeof account.session.status =
+                      let oldSocket: string | null = null;
+                      let persistentStatus: typeof account.session.status =
                         'online';
                       const newSessionId = nanoid();
                       const timestamp =
                         DateTime.utc().toISO() ?? new Date().toISOString();
                       const updatedUsers = users.map((user): User => {
                         if (user.id === account.id) {
-                          oldSessionSocket = user.session.socket;
+                          oldSocket = user.session.socket;
                           const updatedUser: User = {
                             ...user,
                             session: {
@@ -154,12 +154,12 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               socket: socket.id,
                               status:
                                 user.session.status === 'offline'
-                                  ? sessionStatus
+                                  ? persistentStatus
                                   : user.session.status,
                               lastOnline: timestamp
                             }
                           };
-                          sessionStatus = updatedUser.session.status;
+                          persistentStatus = updatedUser.session.status;
                           return updatedUser;
                         }
                         return user;
@@ -176,16 +176,16 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                         .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                       setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                         (): void => {
-                          if (oldSessionSocket) {
+                          if (oldSocket) {
                             socket.broadcast
-                              .to(oldSessionSocket)
+                              .to(oldSocket)
                               .emit('logout old session');
                           }
                           const userLoggedInNotif: UserLoggedInNotif = {
                             user: {
                               id: account.id,
                               session: {
-                                status: sessionStatus
+                                status: persistentStatus
                                   .replace('appear', '')
                                   .trim() as 'online' | 'away' | 'offline',
                                 lastOnline: timestamp
