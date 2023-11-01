@@ -97,7 +97,9 @@ const verifyMiddleware =
                             user: {
                               id: onlineUser.id,
                               session: {
-                                status: onlineUser.session.status.replace('appear', '').trim() as 'online' | 'away' | 'offline',
+                                status: onlineUser.session.status
+                                  .replace('appear', '')
+                                  .trim() as 'online' | 'away' | 'offline',
                                 lastOnline: onlineUser.session.lastOnline
                               }
                             }
