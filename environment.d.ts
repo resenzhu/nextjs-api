@@ -2,6 +2,7 @@ declare namespace NodeJS {
   interface ProcessEnv {
     APP_PORT: number;
     APP_CLIENT: string;
+    APP_CLIENT_RECAPTCHA_DUMMY: string;
     GOOGLE_RECAPTCHA_KEY_V2_CHECKBOX: string;
     GOOGLE_RECAPTCHA_KEY_V3: string;
     JWT_KEY_PRIVATE_BASE64: string;
