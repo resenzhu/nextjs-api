@@ -19,6 +19,7 @@ const socketManager = new Manager(`ws://localhost:${process.env.APP_PORT}`, {
 });
 
 const mainSocket = socketManager.socket('/main');
+const breezySocket = socketManager.socket('/project/breezy');
 
 const call = (
   socket: typeof mainSocket,
@@ -61,4 +62,11 @@ const mainEvent: {
   }
 };
 
-mainEvent.submitContactForm();
+const breezyEvent: {updateUserStatus: () => void} = {
+  updateUserStatus: (): void => {
+    call(breezySocket, 'update user status', {status: 'appear away'});
+  }
+};
+
+mainEvent.askChatbot();
+breezyEvent.updateUserStatus();
