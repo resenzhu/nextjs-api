@@ -70,10 +70,19 @@ const mainEvent: {
 };
 
 const breezyEvent: {
+  login: () => void;
   signup: () => void;
   skip: () => void;
   updateUserStatus: () => void;
 } = {
+  login: (): void => {
+    call(breezySocket, 'login', {
+      username: '',
+      password: '',
+      honeypot: '',
+      recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
+    });
+  },
   signup: (): void => {
     const name = uniqueNamesGenerator({
       dictionaries: [names, names],
@@ -99,4 +108,4 @@ const breezyEvent: {
 };
 
 mainEvent.skip();
-breezyEvent.signup();
+breezyEvent.login();
