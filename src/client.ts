@@ -24,36 +24,52 @@ const socketManager = new Manager(`ws://localhost:${process.env.APP_PORT}`, {
 });
 
 const mainSocket = socketManager.socket('/main');
-const breezySocket = socketManager.socket('/project/breezy');
+const breezySocket = socketManager.socket('/project/breezy', {
+  auth: {
+    token: ''
+  }
+});
 
 const call = (
   socket: typeof mainSocket,
   event: string,
-  request: object
+  request?: object
 ): void => {
-  socket
-    .timeout(5000)
-    .emit(event, request, (socketError: Error, response: object): void => {
-      if (socketError) {
-        logger.error(socketError, event);
-      } else {
-        logger.info({request: request, response: response}, event);
-      }
-      process.exit();
-    });
+  if (request) {
+    socket
+      .timeout(5000)
+      .emit(event, request, (socketError: Error, response: object): void => {
+        if (socketError) {
+          logger.error(socketError, event);
+        } else {
+          logger.info({request: request, response: response}, event);
+        }
+        process.exit();
+      });
+  } else {
+    socket
+      .timeout(5000)
+      .emit(event, (socketError: Error, response: object): void => {
+        if (socketError) {
+          logger.error(socketError, event);
+        } else {
+          logger.info({response: response}, event);
+        }
+        process.exit();
+      });
+  }
 };
 
 const mainEvent: {
   askChatbot: () => void;
-  skip: () => void;
   submitContactForm: () => void;
+  skip: () => void;
 } = {
   askChatbot: (): void => {
     call(mainSocket, 'ask chatbot', {
       input: 'hello'
     });
   },
-  skip: (): void => {}, // eslint-disable-line
   submitContactForm: (): void => {
     const name = uniqueNamesGenerator({
       dictionaries: [names, names, names],
@@ -66,27 +82,19 @@ const mainEvent: {
       message: new LoremIpsum().generateParagraphs(1),
       honeypot: ''
     });
+  },
+  skip: (): void => {
+    mainSocket.disconnect();
   }
 };
 
 const breezyEvent: {
-  fetchUsers: () => void;
-  login: () => void;
   signup: () => void;
-  skip: () => void;
+  login: () => void;
+  fetchUsers: () => void;
   updateUserStatus: () => void;
+  skip: () => void;
 } = {
-  fetchUsers: (): void => {
-    call(breezySocket, 'fetch users');
-  },
-  login: (): void => {
-    call(breezySocket, 'login', {
-      username: '',
-      password: '',
-      honeypot: '',
-      recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
-    });
-  },
   signup: (): void => {
     const name = uniqueNamesGenerator({
       dictionaries: [names, names],
@@ -105,11 +113,24 @@ const breezyEvent: {
       recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
     });
   },
-  skip: (): void => {}, // eslint-disable-line
+  login: (): void => {
+    call(breezySocket, 'login', {
+      username: '',
+      password: '',
+      honeypot: '',
+      recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
+    });
+  },
+  fetchUsers: (): void => {
+    call(breezySocket, 'fetch users');
+  },
   updateUserStatus: (): void => {
     call(breezySocket, 'update user status', {status: 'appear away'});
+  },
+  skip: (): void => {
+    breezySocket.disconnect();
   }
 };
 
 mainEvent.skip();
-breezyEvent.login();
+breezyEvent.signup();
