@@ -52,7 +52,7 @@ const verifyMiddleware =
         (jwtError: VerifyErrors | null, decoded: any): void => {
           if (jwtError) {
             breezyLogger.warn({error: jwtError.message}, 'verify token failed');
-            next(new Error('JWTError'));
+            next(new Error('ClientError'));
           } else {
             const jwtPayload = decoded as JWTPayload;
             storage
@@ -119,7 +119,7 @@ const verifyMiddleware =
                         {error: "'users' is undefined."},
                         'verify token failed'
                       );
-                      next(new Error('UserDataError'));
+                      next(new Error('ServerError'));
                     }
                   }
                 );
@@ -129,7 +129,7 @@ const verifyMiddleware =
                   {error: storageError.message},
                   'verify token failed'
                 );
-                next(new Error('StorageError'));
+                next(new Error('ServerError'));
               });
           }
         }
