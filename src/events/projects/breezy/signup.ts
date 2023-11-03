@@ -96,7 +96,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
               "4220104|'displayName' must be between 2 and 25 characters.",
             'string.pattern.base':
               "4220105|'displayName' must only contain letters and spaces.",
-            'any.required': "40001|'displayName' is required."
+            'any.required': "40002|'displayName' is required."
           }),
         password: joi.string().min(8).max(64).required().messages({
           'string.base': "4220301|'password' must be a string.",
@@ -133,6 +133,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
         ...data,
         username: sanitize(data.username).trim().toLowerCase(),
         displayName: sanitize(data.displayName).trim(),
+        honeypot: sanitize(data.honeypot).trim(),
         recaptcha: sanitize(data.recaptcha).trim()
       };
       verifyRecaptcha({
@@ -148,117 +149,100 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, 'signup failed');
             return callback(response);
           }
-          storage
-            .then((): void => {
-              getItem('breezy users').then(
-                (users: User[] | undefined): void => {
-                  const account = users?.find(
-                    (user): boolean =>
-                      user.username === data.username &&
-                      DateTime.utc()
-                        .endOf('day')
-                        .diff(
-                          DateTime.fromISO(user.session.lastOnline)
-                            .toUTC()
-                            .startOf('day'),
-                          ['weeks']
-                        ).weeks <= 1
-                  );
-                  if (account) {
-                    const response: ClientResponse = createErrorResponse({
-                      code: '40901',
-                      message: 'username already exists.'
-                    });
-                    logger.warn({response: response}, 'signup failed');
-                    return callback(response);
+          storage.then((): void => {
+            getItem('breezy users').then((users: User[] | undefined): void => {
+              const account = users?.find(
+                (user): boolean =>
+                  user.username === data.username &&
+                  DateTime.utc()
+                    .endOf('day')
+                    .diff(
+                      DateTime.fromISO(user.session.lastOnline)
+                        .toUTC()
+                        .startOf('day'),
+                      ['weeks']
+                    ).weeks <= 1
+              );
+              if (account) {
+                const response: ClientResponse = createErrorResponse({
+                  code: '40901',
+                  message: 'username already exists.'
+                });
+                logger.warn({response: response}, 'signup failed');
+                return callback(response);
+              }
+              hash(data.password, 10).then((hashedPassword): void => {
+                const timestamp =
+                  DateTime.utc().toISO() ?? new Date().toISOString();
+                const newUser: User = {
+                  id: nanoid(),
+                  username: data.username,
+                  displayName: data.displayName,
+                  password: hashedPassword,
+                  joinDate: timestamp,
+                  session: {
+                    id: nanoid(),
+                    socket: socket.id,
+                    status: 'online',
+                    lastOnline: timestamp
                   }
-                  hash(data.password, 10).then((hashedPassword): void => {
-                    const timestamp =
-                      DateTime.utc().toISO() ?? new Date().toISOString();
-                    const newUser: User = {
-                      id: nanoid(),
-                      username: data.username,
-                      displayName: data.displayName,
-                      password: hashedPassword,
-                      joinDate: timestamp,
-                      session: {
-                        id: nanoid(),
-                        socket: socket.id,
-                        status: 'online',
-                        lastOnline: timestamp
+                };
+                const updatedUsers = [
+                  ...(users?.filter(
+                    (user): boolean => user.username !== newUser.username
+                  ) ?? []),
+                  newUser
+                ];
+                const ttl = DateTime.max(
+                  ...updatedUsers.map(
+                    (user): DateTime =>
+                      DateTime.fromISO(user.session.lastOnline, {
+                        zone: 'utc'
+                      })
+                  )
+                )
+                  .plus({weeks: 1})
+                  .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                  (): void => {
+                    const userSignedUpNotif: UserSignedUpNotif = {
+                      user: {
+                        id: newUser.id,
+                        username: newUser.username,
+                        displayName: newUser.displayName,
+                        session: {
+                          status: newUser.session.status
+                            .replace('appear', '')
+                            .trim() as 'online' | 'away' | 'offline',
+                          lastOnline: newUser.session.lastOnline
+                        }
                       }
                     };
-                    const updatedUsers = [
-                      ...(users?.filter(
-                        (user): boolean => user.username !== newUser.username
-                      ) ?? []),
-                      newUser
-                    ];
-                    const ttl = DateTime.max(
-                      ...updatedUsers.map(
-                        (user): DateTime =>
-                          DateTime.fromISO(user.session.lastOnline, {
-                            zone: 'utc'
-                          })
-                      )
-                    )
-                      .plus({weeks: 1})
-                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                      (): void => {
-                        const userSignedUpNotif: UserSignedUpNotif = {
-                          user: {
-                            id: newUser.id,
-                            username: newUser.username,
-                            displayName: newUser.displayName,
-                            session: {
-                              status: newUser.session.status
-                                .replace('appear', '')
-                                .trim() as 'online' | 'away' | 'offline',
-                              lastOnline: newUser.session.lastOnline
-                            }
+                    socket.broadcast.emit('user signed up', userSignedUpNotif);
+                    const response: ClientResponse = createSuccessResponse({
+                      data: {
+                        token: sign(
+                          {id: newUser.id, session: newUser.session.id},
+                          Buffer.from(
+                            process.env.JWT_KEY_PRIVATE_BASE64,
+                            'base64'
+                          ).toString(),
+                          {
+                            algorithm: 'RS256',
+                            issuer: 'resen',
+                            subject: newUser.username
                           }
-                        };
-                        socket.broadcast.emit(
-                          'user signed up',
-                          userSignedUpNotif
-                        );
-                        const response: ClientResponse = createSuccessResponse({
-                          data: {
-                            token: sign(
-                              {id: newUser.id, session: newUser.session.id},
-                              Buffer.from(
-                                process.env.JWT_KEY_PRIVATE_BASE64,
-                                'base64'
-                              ).toString(),
-                              {
-                                algorithm: 'RS256',
-                                issuer: 'resen',
-                                subject: newUser.username
-                              }
-                            )
-                          }
-                        });
-                        logger.info({response: response}, 'signup success');
-                        return callback(response);
+                        )
                       }
-                    );
-                  });
-                  return undefined;
-                }
-              );
-            })
-            .catch((storageError: Error): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while accessing the storage.'
+                    });
+                    logger.info({response: response}, 'signup success');
+                    return callback(response);
+                  }
+                );
               });
-              logger.warn(
-                {response: response, error: storageError.message},
-                'signup failed'
-              );
-              return callback(response);
+              return undefined;
             });
+          });
           return undefined;
         })
         .catch((captchaError: Error): void => {
