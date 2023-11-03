@@ -105,6 +105,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           .join(' '),
         email: sanitize(data.email).trim().toLowerCase(),
         message: sanitize(data.message).trim(),
+        honeypot: sanitize(data.honeypot).trim(),
         recaptcha: sanitize(data.recaptcha).trim()
       };
       verifyRecaptcha({
