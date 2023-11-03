@@ -20,23 +20,23 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
     logger.info('socket disconnected');
     storage.then((): void => {
       getItem('breezy users').then((users: User[] | undefined): void => {
-        let offlineUser: User | null = null;
-        const updatedUsers = users?.map((user): User => {
-          if (user.session.socket === socket.id) {
-            const updatedUser: User = {
-              ...user,
-              session: {
-                ...user.session,
-                socket: null,
-                lastOnline: DateTime.utc().toISO() ?? new Date().toISOString()
-              }
-            };
-            offlineUser = updatedUser;
-            return updatedUser;
-          }
-          return user;
-        });
-        if (updatedUsers) {
+        if (users) {
+          let offlineUser: User | null = null;
+          const updatedUsers = users.map((user): User => {
+            if (user.session.socket === socket.id) {
+              const updatedUser: User = {
+                ...user,
+                session: {
+                  ...user.session,
+                  socket: null,
+                  lastOnline: DateTime.utc().toISO() ?? new Date().toISOString()
+                }
+              };
+              offlineUser = updatedUser;
+              return updatedUser;
+            }
+            return user;
+          });
           const ttl = DateTime.max(
             ...updatedUsers.map(
               (user): DateTime =>
