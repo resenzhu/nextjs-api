@@ -8,6 +8,7 @@ import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';
+import type {UserStatusNotif} from '@events/projects/breezy/login';
 import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
 import {storage} from '@utils/storage';
@@ -54,6 +55,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
       };
       storage.then((): void => {
         getItem('breezy users').then((users: User[]): void => {
+          let changedUser: User | null = null;
           let timestamp = DateTime.utc().toISO() ?? new Date().toISOString();
           const updatedUsers = users.map((user): User => {
             if (user.session.socket === socket.id) {
@@ -68,6 +70,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
                       : user.session.lastOnline
                 }
               };
+              changedUser = updatedUser;
               timestamp = updatedUser.session.lastOnline;
               return updatedUser;
             }
@@ -84,6 +87,20 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
             .plus({weeks: 1})
             .diff(DateTime.utc(), ['milliseconds']).milliseconds;
           setItem('breezy users', updatedUsers, {ttl: ttl}).then((): void => {
+            if (changedUser) {
+              const userStatusNotif: UserStatusNotif = {
+                user: {
+                  id: changedUser.id,
+                  session: {
+                    status: changedUser.session.status
+                      .replace('appear', '')
+                      .trim() as 'online' | 'away' | 'offline',
+                    lastOnline: changedUser.session.lastOnline
+                  }
+                }
+              };
+              socket.broadcast.emit('update user status', userStatusNotif);
+            }
             const response: ClientResponse = createSuccessResponse({
               data: {
                 user: {
