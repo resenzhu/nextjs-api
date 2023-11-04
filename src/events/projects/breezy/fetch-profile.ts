@@ -31,44 +31,30 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
             return callback(response);
           }
           const jwtPayload = decoded as JWTPayload;
-          storage
-            .then((): void => {
-              getItem('breezy users').then(
-                (users: User[] | undefined): void => {
-                  const account = users?.find(
-                    (user): boolean => user.id === jwtPayload.id
-                  );
-                  const response: ClientResponse = createSuccessResponse({
-                    data: {
-                      user: account
-                        ? {
-                            id: account.id,
-                            username: account.username,
-                            displayName: account.displayName,
-                            session: {
-                              status: account.session.status,
-                              lastOnline: account.session.lastOnline
-                            }
-                          }
-                        : undefined
-                    }
-                  });
-                  logger.info({response: response}, 'fetch profile success');
-                  return callback(response);
+          storage.then((): void => {
+            getItem('breezy users').then((users: User[]): void => {
+              const account = users.find(
+                (user): boolean => user.id === jwtPayload.id
+              );
+              const response: ClientResponse = createSuccessResponse({
+                data: {
+                  user: account
+                    ? {
+                        id: account.id,
+                        username: account.username,
+                        displayName: account.displayName,
+                        session: {
+                          status: account.session.status,
+                          lastOnline: account.session.lastOnline
+                        }
+                      }
+                    : undefined
                 }
-              );
-            })
-            .catch((storageError: Error): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while accessing the storage.'
               });
-              logger.warn(
-                {response: response, error: storageError.message},
-                'fetch profile failed'
-              );
+              logger.info({response: response}, 'fetch profile success');
               return callback(response);
             });
+          });
           return undefined;
         }
       );

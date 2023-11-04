@@ -31,42 +31,27 @@ const fetchUsersEvent = (socket: Socket, logger: Logger): void => {
             return callback(response);
           }
           const jwtPayload = decoded as JWTPayload;
-          storage
-            .then((): void => {
-              getItem('breezy users').then(
-                (users: User[] | undefined): void => {
-                  const response: ClientResponse = createSuccessResponse({
-                    data: {
-                      users:
-                        users
-                          ?.filter((user): boolean => user.id !== jwtPayload.id)
-                          .map((user): object => ({
-                            id: user.id,
-                            username: user.username,
-                            displayName: user.displayName,
-                            session: {
-                              status: user.session.status,
-                              lastOnline: user.session.lastOnline
-                            }
-                          })) ?? []
-                    }
-                  });
-                  logger.info({response: response}, 'fetch users success');
-                  return callback(response);
+          storage.then((): void => {
+            getItem('breezy users').then((users: User[]): void => {
+              const response: ClientResponse = createSuccessResponse({
+                data: {
+                  users: users
+                    .filter((user): boolean => user.id !== jwtPayload.id)
+                    .map((user): object => ({
+                      id: user.id,
+                      username: user.username,
+                      displayName: user.displayName,
+                      session: {
+                        status: user.session.status,
+                        lastOnline: user.session.lastOnline
+                      }
+                    }))
                 }
-              );
-            })
-            .catch((storageError: Error): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while accessing the storage.'
               });
-              logger.warn(
-                {response: response, error: storageError.message},
-                'fetch users failed'
-              );
+              logger.info({response: response}, 'fetch users success');
               return callback(response);
             });
+          });
           return undefined;
         }
       );
