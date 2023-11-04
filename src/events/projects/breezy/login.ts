@@ -23,7 +23,7 @@ type LoginReq = {
   recaptcha: string;
 };
 
-type UserLoggedInNotif = {
+type UserStatusNotif = {
   user: {
     id: string;
     session: {
@@ -180,7 +180,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                           .to(oldSocket)
                           .emit('logout old session');
                       }
-                      const userLoggedInNotif: UserLoggedInNotif = {
+                      const userStatusNotif: UserStatusNotif = {
                         user: {
                           id: account.id,
                           session: {
@@ -192,8 +192,8 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                         }
                       };
                       socket.broadcast.emit(
-                        'user logged in',
-                        userLoggedInNotif
+                        'update user status',
+                        userStatusNotif
                       );
                       const response: ClientResponse = createSuccessResponse({
                         data: {
@@ -239,5 +239,5 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {LoginReq, UserLoggedInNotif};
+export type {LoginReq, UserStatusNotif};
 export default loginEvent;

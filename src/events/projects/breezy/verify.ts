@@ -5,6 +5,7 @@ import type {ExtendedError} from 'socket.io/dist/namespace';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';
+import type {UserStatusNotif} from '@events/projects/breezy/login';
 import {storage} from '@utils/storage';
 
 type JWTPayload = {
@@ -13,16 +14,6 @@ type JWTPayload = {
   iat: number;
   iss: string;
   sub: string;
-};
-
-type UserOnlineNotif = {
-  user: {
-    id: string;
-    session: {
-      status: 'online' | 'away' | 'offline';
-      lastOnline: string;
-    };
-  };
 };
 
 const redact: string[] = ['token'];
@@ -90,7 +81,7 @@ const verifyMiddleware =
                 setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                   (): void => {
                     if (onlineUser) {
-                      const userOnlineNotif: UserOnlineNotif = {
+                      const userStatusNotif: UserStatusNotif = {
                         user: {
                           id: onlineUser.id,
                           session: {
@@ -101,7 +92,10 @@ const verifyMiddleware =
                           }
                         }
                       };
-                      socket.broadcast.emit('user online', userOnlineNotif);
+                      socket.broadcast.emit(
+                        'update user status',
+                        userStatusNotif
+                      );
                     }
                     breezyLogger.info('verify token success');
                     next();
@@ -118,5 +112,5 @@ const verifyMiddleware =
   };
 
 export {redact};
-export type {JWTPayload, UserOnlineNotif};
+export type {JWTPayload};
 export default verifyMiddleware;

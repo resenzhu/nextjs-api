@@ -3,17 +3,8 @@ import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';
+import type {UserStatusNotif} from '@events/projects/breezy/login';
 import {storage} from '@utils/storage';
-
-type UserOfflineNotif = {
-  user: {
-    id: string;
-    session: {
-      status: 'online' | 'away' | 'offline';
-      lastOnline: string;
-    };
-  };
-};
 
 const disconnectEvent = (socket: Socket, logger: Logger): void => {
   socket.on('disconnect', (): void => {
@@ -47,7 +38,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
             .diff(DateTime.utc(), ['milliseconds']).milliseconds;
           setItem('breezy users', updatedUsers, {ttl: ttl}).then((): void => {
             if (offlineUser) {
-              const userOfflineNotif: UserOfflineNotif = {
+              const userStatusNotif: UserStatusNotif = {
                 user: {
                   id: offlineUser.id,
                   session: {
@@ -56,7 +47,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
                   }
                 }
               };
-              socket.broadcast.emit('user offline', userOfflineNotif);
+              socket.broadcast.emit('update user status', userStatusNotif);
             }
           });
         }
@@ -65,5 +56,4 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
   });
 };
 
-export type {UserOfflineNotif};
 export default disconnectEvent;

@@ -37,7 +37,7 @@ type User = {
   };
 };
 
-type UserSignedUpNotif = {
+type NewUserNotif = {
   user: {
     id: string;
     username: string;
@@ -205,7 +205,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   .diff(DateTime.utc(), ['milliseconds']).milliseconds;
                 setItem('breezy users', updatedUsers, {ttl: ttl}).then(
                   (): void => {
-                    const userSignedUpNotif: UserSignedUpNotif = {
+                    const newUserNotif: NewUserNotif = {
                       user: {
                         id: newUser.id,
                         username: newUser.username,
@@ -218,7 +218,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                         }
                       }
                     };
-                    socket.broadcast.emit('user signed up', userSignedUpNotif);
+                    socket.broadcast.emit('add new user', newUserNotif);
                     const response: ClientResponse = createSuccessResponse({
                       data: {
                         token: sign(
@@ -262,5 +262,5 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {SignUpReq, User, UserSignedUpNotif};
+export type {SignUpReq, User, NewUserNotif};
 export default signupEvent;
