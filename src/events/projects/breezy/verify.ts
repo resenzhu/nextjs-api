@@ -52,85 +52,63 @@ const verifyMiddleware =
         (jwtError: VerifyErrors | null, decoded: any): void => {
           if (jwtError) {
             breezyLogger.warn({error: jwtError.message}, 'verify token failed');
-            next(new Error('ClientError'));
+            next(new Error('JWTError'));
           } else {
             const jwtPayload = decoded as JWTPayload;
-            storage
-              .then((): void => {
-                getItem('breezy users').then(
-                  (users: User[] | undefined): void => {
-                    if (users) {
-                      let onlineUser: User | null = null;
-                      const updatedUsers = users.map((user): User => {
-                        if (
-                          user.id === jwtPayload.id &&
-                          user.session.id === jwtPayload.session
-                        ) {
-                          const updatedUser: User = {
-                            ...user,
-                            session: {
-                              ...user.session,
-                              socket: socket.id,
-                              lastOnline:
-                                DateTime.utc().toISO() ??
-                                new Date().toISOString()
-                            }
-                          };
-                          onlineUser = updatedUser;
-                          return updatedUser;
-                        }
-                        return user;
-                      });
-                      const ttl = DateTime.max(
-                        ...updatedUsers.map(
-                          (user): DateTime =>
-                            DateTime.fromISO(user.session.lastOnline, {
-                              zone: 'utc'
-                            })
-                        )
-                      )
-                        .plus({weeks: 1})
-                        .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                      setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                        (): void => {
-                          if (onlineUser) {
-                            const userOnlineNotif: UserOnlineNotif = {
-                              user: {
-                                id: onlineUser.id,
-                                session: {
-                                  status: onlineUser.session.status
-                                    .replace('appear', '')
-                                    .trim() as 'online' | 'away' | 'offline',
-                                  lastOnline: onlineUser.session.lastOnline
-                                }
-                              }
-                            };
-                            socket.broadcast.emit(
-                              'user online',
-                              userOnlineNotif
-                            );
+            storage.then((): void => {
+              getItem('breezy users').then((users: User[]): void => {
+                let onlineUser: User | null = null;
+                const updatedUsers = users.map((user): User => {
+                  if (
+                    user.id === jwtPayload.id &&
+                    user.session.id === jwtPayload.session
+                  ) {
+                    const updatedUser: User = {
+                      ...user,
+                      session: {
+                        ...user.session,
+                        socket: socket.id,
+                        lastOnline:
+                          DateTime.utc().toISO() ?? new Date().toISOString()
+                      }
+                    };
+                    onlineUser = updatedUser;
+                    return updatedUser;
+                  }
+                  return user;
+                });
+                const ttl = DateTime.max(
+                  ...updatedUsers.map(
+                    (user): DateTime =>
+                      DateTime.fromISO(user.session.lastOnline, {
+                        zone: 'utc'
+                      })
+                  )
+                )
+                  .plus({weeks: 1})
+                  .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                  (): void => {
+                    if (onlineUser) {
+                      const userOnlineNotif: UserOnlineNotif = {
+                        user: {
+                          id: onlineUser.id,
+                          session: {
+                            status: onlineUser.session.status
+                              .replace('appear', '')
+                              .trim() as 'online' | 'away' | 'offline',
+                            lastOnline: onlineUser.session.lastOnline
                           }
-                          breezyLogger.info('verify token success');
-                          next();
                         }
-                      );
-                    } else {
-                      breezyLogger.warn(
-                        {error: "'users' is undefined."},
-                        'verify token failed'
-                      );
-                      next(new Error('ServerError'));
+                      };
+                      socket.broadcast.emit('user online', userOnlineNotif);
                     }
+                    breezyLogger.info('verify token success');
+                    next();
                   }
                 );
-              })
-              .catch((storageError: Error): void => {
-                breezyLogger.warn(
-                  {error: storageError.message},
-                  'verify token failed'
-                );
-                next(new Error('ServerError'));
               });
+            });
           }
         }
       );
