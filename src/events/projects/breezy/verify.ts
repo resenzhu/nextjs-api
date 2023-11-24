@@ -35,14 +35,15 @@ const verifyMiddleware =
     );
     const {token} = socket.handshake.auth;
     if (token) {
-      breezyLogger.info({token: token}, 'verify token');
+      const event: string = 'verify token';
+      breezyLogger.info({token: token}, event);
       verify(
         token ?? '',
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
         // eslint-disable-next-line
         (jwtError: VerifyErrors | null, decoded: any): void => {
           if (jwtError) {
-            breezyLogger.warn({error: jwtError.message}, 'verify token failed');
+            breezyLogger.warn({error: jwtError.message}, `${event} failed`);
             next(new Error('JWTError'));
           } else {
             const jwtPayload = decoded as JWTPayload;
@@ -97,7 +98,7 @@ const verifyMiddleware =
                         userStatusNotif
                       );
                     }
-                    breezyLogger.info('verify token success');
+                    breezyLogger.info(`${event} success`);
                     next();
                   }
                 );

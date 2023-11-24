@@ -40,10 +40,11 @@ const redact: string[] = [
 ];
 
 const loginEvent = (socket: Socket, logger: Logger): void => {
+  const event: string = 'login';
   socket.on(
-    'login',
+    event,
     (request: LoginReq, callback: (response: ClientResponse) => void): void => {
-      logger.info({request: request}, 'login');
+      logger.info({request: request}, event);
       const requestSchema = joi.object({
         username: joi
           .string()
@@ -89,7 +90,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
           code: validationError.message.split('|')[0],
           message: validationError.message.split('|')[1]
         });
-        logger.warn({response: response}, 'login failed');
+        logger.warn({response: response}, `${event} failed`);
         return callback(response);
       }
       let data = validatedValue as LoginReq;
@@ -109,7 +110,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
               code: '40303',
               message: 'access denied for bot form submission.'
             });
-            logger.warn({response: response}, 'login failed');
+            logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
           storage.then((): void => {
@@ -133,7 +134,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                       code: '401',
                       message: 'invalid username or password.'
                     });
-                    logger.warn({response: response}, 'login failed');
+                    logger.warn({response: response}, `${event} failed`);
                     return callback(response);
                   }
                   let oldSocket: string | null = null;
@@ -211,7 +212,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                           )
                         }
                       });
-                      logger.info({response: response}, 'login success');
+                      logger.info({response: response}, `${event} success`);
                       return callback(response);
                     }
                   );
@@ -229,7 +230,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
           });
           logger.warn(
             {response: response, error: captchaError.message},
-            'login failed'
+            `${event} failed`
           );
           return callback(response);
         });

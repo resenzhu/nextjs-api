@@ -18,13 +18,14 @@ type UpdateUserStatusReq = {
 };
 
 const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
+  const event: string = 'update user status';
   socket.on(
-    'update user status',
+    event,
     (
       request: UpdateUserStatusReq,
       callback: (response: ClientResponse) => void
     ): void => {
-      logger.info({request: request}, 'update user status');
+      logger.info({request: request}, event);
       const requestSchema = joi.object({
         status: joi
           .string()
@@ -45,7 +46,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
           code: validationError.message.split('|')[0],
           message: validationError.message.split('|')[1]
         });
-        logger.warn({response: response}, 'update user status failed');
+        logger.warn({response: response}, `${event} failed`);
         return callback(response);
       }
       let data = validatedValue as UpdateUserStatusReq;
@@ -110,7 +111,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
                 }
               }
             });
-            logger.info({response: response}, 'update user status success');
+            logger.info({response: response}, `${event} success`);
             return callback(response);
           });
         });

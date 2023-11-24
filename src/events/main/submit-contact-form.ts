@@ -29,13 +29,14 @@ type Submission = {
 const redact: string[] = ['request.name', 'request.email', 'request.recaptcha'];
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
+  const event: string = 'submit contact form';
   socket.on(
-    'submit contact form',
+    event,
     (
       request: SubmitContactFormReq,
       callback: (response: ClientResponse) => void
     ): void => {
-      logger.info({request: request}, 'submit contact form');
+      logger.info({request: request}, event);
       const requestSchema = joi.object({
         name: joi
           .string()
@@ -89,7 +90,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           code: validationError.message.split('|')[0],
           message: validationError.message.split('|')[1]
         });
-        logger.warn({response: response}, 'submit contact form failed');
+        logger.warn({response: response}, `${event} failed`);
         return callback(response);
       }
       let data = validatedValue as SubmitContactFormReq;
@@ -118,7 +119,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
               code: '40304',
               message: 'access denied for bot form submission.'
             });
-            logger.warn({response: response}, 'submit contact form failed');
+            logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
           const userAgent = socket.handshake.headers['user-agent'];
@@ -127,7 +128,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
               code: '400',
               message: 'user agent header is required.'
             });
-            logger.warn({response: response}, 'submit contact form failed');
+            logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
           storage.then((): void => {
@@ -144,10 +145,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     code: '429',
                     message: 'too many requests.'
                   });
-                  logger.warn(
-                    {response: response},
-                    'submit contact form failed'
-                  );
+                  logger.warn({response: response}, `${event} failed`);
                   return callback(response);
                 }
                 sendEmail({
@@ -170,10 +168,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                       const response: ClientResponse = createSuccessResponse(
                         {}
                       );
-                      logger.info(
-                        {response: response},
-                        'submit contact form success'
-                      );
+                      logger.info({response: response}, `${event} success`);
                       return callback(response);
                     });
                   })
@@ -185,7 +180,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     });
                     logger.warn(
                       {response: response, error: mailjetError.message},
-                      'submit contact form failed'
+                      `${event} failed`
                     );
                     return callback(response);
                   });
@@ -202,7 +197,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
           });
           logger.warn(
             {response: response, error: captchaError.message},
-            'submit contact form failed'
+            `${event} failed`
           );
           return callback(response);
         });

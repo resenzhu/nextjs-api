@@ -56,13 +56,14 @@ const redact: string[] = [
 ];
 
 const signupEvent = (socket: Socket, logger: Logger): void => {
+  const event: string = 'signup';
   socket.on(
-    'signup',
+    event,
     (
       request: SignUpReq,
       callback: (response: ClientResponse) => void
     ): void => {
-      logger.info({request: request}, 'signup');
+      logger.info({request: request}, event);
       const requestSchema = joi.object({
         username: joi
           .string()
@@ -125,7 +126,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
           code: validationError.message.split('|')[0],
           message: validationError.message.split('|')[1]
         });
-        logger.warn({response: response}, 'signup failed');
+        logger.warn({response: response}, `${event} failed`);
         return callback(response);
       }
       let data = validatedValue as SignUpReq;
@@ -146,7 +147,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
               code: '40304',
               message: 'access denied for bot form submission.'
             });
-            logger.warn({response: response}, 'signup failed');
+            logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
           storage.then((): void => {
@@ -168,7 +169,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   code: '40901',
                   message: 'username already exists.'
                 });
-                logger.warn({response: response}, 'signup failed');
+                logger.warn({response: response}, `${event} failed`);
                 return callback(response);
               }
               hash(data.password, 10).then((hashedPassword): void => {
@@ -235,7 +236,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                         )
                       }
                     });
-                    logger.info({response: response}, 'signup success');
+                    logger.info({response: response}, `${event} success`);
                     return callback(response);
                   }
                 );
@@ -252,7 +253,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
           });
           logger.warn(
             {response: response, error: captchaError.message},
-            'signup failed'
+            `${event} failed`
           );
           return callback(response);
         });

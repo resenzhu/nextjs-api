@@ -17,13 +17,14 @@ const askChatbotEvent = (
   logger: Logger,
   {chatbot}: {chatbot: any} // eslint-disable-line
 ): void => {
+  const event: string = 'ask chatbot';
   socket.on(
-    'ask chatbot',
+    event,
     async (
       request: AskChatbotReq,
       callback: (response: ClientResponse) => void
     ): Promise<void> => {
-      logger.info({request: request}, 'ask chatbot');
+      logger.info({request: request}, event);
       const requestSchema = joi.object({
         input: joi.string().min(1).max(160).required().messages({
           'string.base': "4220101|'input' must be a string.",
@@ -40,7 +41,7 @@ const askChatbotEvent = (
           code: validationError.message.split('|')[0],
           message: validationError.message.split('|')[1]
         });
-        logger.warn({response: response}, 'ask chatbot failed');
+        logger.warn({response: response}, `${event} failed`);
         return callback(response);
       }
       let data = validatedValue as AskChatbotReq;
@@ -54,7 +55,7 @@ const askChatbotEvent = (
           reply: reply.answer
         }
       });
-      logger.info({response: response}, 'ask chatbot success');
+      logger.info({response: response}, `${event} success`);
       return callback(response);
     }
   );
