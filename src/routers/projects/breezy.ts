@@ -3,6 +3,7 @@ import {
   fetchProfile,
   fetchUsers,
   login,
+  logout,
   signup,
   updateUserStatus,
   verify
@@ -29,6 +30,7 @@ const breezyRouter = (server: Server): void => {
     fetchUsers(socket, breezyLogger);
     fetchProfile(socket, breezyLogger);
     updateUserStatus(socket, breezyLogger);
+    logout(socket, breezyLogger);
     disconnect(socket, breezyLogger);
   });
 };
