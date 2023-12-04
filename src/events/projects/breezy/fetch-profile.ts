@@ -4,7 +4,7 @@ import {
   createSuccessResponse
 } from '@utils/response';
 import {type VerifyErrors, verify} from 'jsonwebtoken';
-import type {JWTPayload} from '@events/projects/breezy/verify';
+import type {JWTPayload} from '@events/projects/breezy/verify-token';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';

@@ -18,7 +18,7 @@ type JWTPayload = {
 
 const redact: string[] = ['token'];
 
-const verifyMiddleware =
+const verifyTokenMiddleware =
   (
     logger: Logger
   ): ((
@@ -114,4 +114,4 @@ const verifyMiddleware =
 
 export {redact};
 export type {JWTPayload};
-export default verifyMiddleware;
+export default verifyTokenMiddleware;

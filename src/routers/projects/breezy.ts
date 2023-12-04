@@ -6,7 +6,7 @@ import {
   logout,
   signup,
   updateUserStatus,
-  verify
+  verifyToken
 } from '@events/projects/breezy';
 import type {Server} from 'socket.io';
 import logger from '@utils/logger';
@@ -15,7 +15,7 @@ import {redact as signupRedact} from '@events/projects/breezy/signup';
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
-  breezy.use(verify(logger));
+  breezy.use(verifyToken(logger));
   breezy.on('connection', (socket): void => {
     const breezyLogger = logger.child(
       {
