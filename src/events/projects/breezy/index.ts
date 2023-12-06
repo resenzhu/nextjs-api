@@ -5,4 +5,5 @@ export {default as login} from '@events/projects/breezy/login';
 export {default as logout} from '@events/projects/breezy/logout';
 export {default as signup} from '@events/projects/breezy/signup';
 export {default as updateUserStatus} from '@events/projects/breezy/update-user-status';
+export {default as verifyStatus} from '@events/projects/breezy/verify-status';
 export {default as verifyToken} from '@events/projects/breezy/verify-token';
