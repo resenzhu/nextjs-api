@@ -2,10 +2,10 @@ import {type VerifyErrors, verify} from 'jsonwebtoken';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {ExtendedError} from 'socket.io/dist/namespace';
-import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy/signup';
 import type {UserStatusNotif} from '@events/projects/breezy/login';
+import {logger} from '@utils/logger';
 import {storage} from '@utils/storage';
 
 type JWTPayload = {
@@ -19,9 +19,7 @@ type JWTPayload = {
 const redact: string[] = ['token'];
 
 const verifyTokenMiddleware =
-  (
-    logger: Logger
-  ): ((
+  (): ((
     socket: Socket,
     next: (error?: ExtendedError | undefined) => void
   ) => void) =>
