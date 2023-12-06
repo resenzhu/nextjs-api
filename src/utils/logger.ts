@@ -20,7 +20,7 @@ export const getRedaction = async ({
         (
           await import(
             `@events/main/${submodule.replace(
-              /[A-Z]/g,
+              /[A-Z]/gu,
               (word): string => `-${word.toLowerCase()}`
             )}`
           )
