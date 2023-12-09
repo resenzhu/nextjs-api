@@ -80,7 +80,8 @@ const mainEvent: {
       name: name,
       email: `${name.replaceAll(' ', '.').toLowerCase()}@email.com`,
       message: new LoremIpsum().generateParagraphs(1),
-      honeypot: ''
+      honeypot: '',
+      recaptcha: process.env.APP_CLIENT_RECAPTCHA_DUMMY
     });
   },
   skip: (): void => {

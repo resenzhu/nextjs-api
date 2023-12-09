@@ -220,6 +220,17 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                 }
               );
             });
+          })
+          .catch((storageError: Error): void => {
+            const response: ClientResponse = createErrorResponse({
+              code: '500',
+              message: 'an error occured while accessing the storage.'
+            });
+            logger.warn(
+              {response: response, error: storageError.message},
+              `${event} failed`
+            );
+            return callback(response);
           });
           return undefined;
         })
