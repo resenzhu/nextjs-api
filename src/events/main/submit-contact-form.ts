@@ -131,63 +131,75 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
-          storage.then((): void => {
-            getItem('main contact form submissions').then(
-              (submissions: Submission[] | undefined): void => {
-                const todaySubmissions = submissions?.filter(
-                  (submission): boolean =>
-                    submission.submitter === btoa(userAgent) &&
-                    DateTime.fromISO(submission.timestamp).toISODate() ===
-                      DateTime.utc().toLocal().toISODate()
-                );
-                if (todaySubmissions && todaySubmissions.length === 5) {
-                  const response: ClientResponse = createErrorResponse({
-                    code: '429',
-                    message: 'too many requests.'
-                  });
-                  logger.warn({response: response}, `${event} failed`);
-                  return callback(response);
-                }
-                sendEmail({
-                  name: data.name,
-                  email: data.email,
-                  message: data.message
-                })
-                  .then((): void => {
-                    const newSubmission: Submission = {
-                      submitter: btoa(userAgent),
-                      timestamp:
-                        DateTime.utc().toISO() ??
-                        new Date(Date.now()).toISOString()
-                    };
-                    setItem(
-                      'main contact form submissions',
-                      [...(submissions ?? []), newSubmission],
-                      {ttl: 2 * 24 * 60 * 60 * 1000}
-                    ).then((): void => {
-                      const response: ClientResponse = createSuccessResponse(
-                        {}
+          storage
+            .then((): void => {
+              getItem('main contact form submissions').then(
+                (submissions: Submission[] | undefined): void => {
+                  const todaySubmissions = submissions?.filter(
+                    (submission): boolean =>
+                      submission.submitter === btoa(userAgent) &&
+                      DateTime.fromISO(submission.timestamp).toISODate() ===
+                        DateTime.utc().toLocal().toISODate()
+                  );
+                  if (todaySubmissions && todaySubmissions.length === 5) {
+                    const response: ClientResponse = createErrorResponse({
+                      code: '429',
+                      message: 'too many requests.'
+                    });
+                    logger.warn({response: response}, `${event} failed`);
+                    return callback(response);
+                  }
+                  sendEmail({
+                    name: data.name,
+                    email: data.email,
+                    message: data.message
+                  })
+                    .then((): void => {
+                      const newSubmission: Submission = {
+                        submitter: btoa(userAgent),
+                        timestamp:
+                          DateTime.utc().toISO() ??
+                          new Date(Date.now()).toISOString()
+                      };
+                      setItem(
+                        'main contact form submissions',
+                        [...(submissions ?? []), newSubmission],
+                        {ttl: 2 * 24 * 60 * 60 * 1000}
+                      ).then((): void => {
+                        const response: ClientResponse = createSuccessResponse(
+                          {}
+                        );
+                        logger.info({response: response}, `${event} success`);
+                        return callback(response);
+                      });
+                    })
+                    .catch((mailjetError: Error): void => {
+                      const response: ClientResponse = createErrorResponse({
+                        code: '500',
+                        message:
+                          'an error occured while attempting to send the email.'
+                      });
+                      logger.warn(
+                        {response: response, error: mailjetError.message},
+                        `${event} failed`
                       );
-                      logger.info({response: response}, `${event} success`);
                       return callback(response);
                     });
-                  })
-                  .catch((mailjetError: Error): void => {
-                    const response: ClientResponse = createErrorResponse({
-                      code: '500',
-                      message:
-                        'an error occured while attempting to send the email.'
-                    });
-                    logger.warn(
-                      {response: response, error: mailjetError.message},
-                      `${event} failed`
-                    );
-                    return callback(response);
-                  });
-                return undefined;
-              }
-            );
-          });
+                  return undefined;
+                }
+              );
+            })
+            .catch((storageError: Error): void => {
+              const response: ClientResponse = createErrorResponse({
+                code: '500',
+                message: 'an error occured while accessing the storage.'
+              });
+              logger.warn(
+                {response: response, error: storageError.message},
+                `${event} failed`
+              );
+              return callback(response);
+            });
           return undefined;
         })
         .catch((captchaError: Error): void => {
