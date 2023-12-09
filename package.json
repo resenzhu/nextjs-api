@@ -10,7 +10,7 @@
   },
   "scripts": {
     "upgrade": "ncu -u",
-    "prettier": "prettier --write . !dist",
+    "prettier": "prettier --list-different --write . !dist",
     "lint": "eslint . --ext .ts",
     "client": "node -r ts-node/register -r tsconfig-paths/register src/client.ts",
     "build": "esbuild src/server.ts --platform=node --bundle --minify --outfile=dist/server.js",
