@@ -1,5 +1,6 @@
+import pino, {type Logger} from 'pino';
 import {DateTime} from 'luxon';
-import pino from 'pino';
+import type {Socket} from 'socket.io';
 
 export const logger = pino({
   transport: {
@@ -7,6 +8,21 @@ export const logger = pino({
   },
   timestamp: (): string => `,"timestamp":"${DateTime.utc().toISO()}"`
 });
+
+export const createRouterLogger = ({
+  socket,
+  redaction
+}: {
+  socket: Socket;
+  redaction: string[];
+}): Logger =>
+  logger.child(
+    {
+      namespace: socket.nsp.name.slice(1),
+      socketid: socket.id
+    },
+    {redact: {paths: redaction, censor: '[redacted]'}}
+  );
 
 export const getRedaction = async ({
   module
