@@ -7,6 +7,7 @@ import {
   logout,
   signup,
   updateUserStatus,
+  verifyStatus,
   verifyToken
 } from '@events/projects/breezy';
 import type {Server} from 'socket.io';
@@ -21,6 +22,7 @@ const breezyRouter = (server: Server): void => {
         redaction: redaction
       });
       breezyLogger.info('socket connected');
+      verifyStatus(socket, breezyLogger, breezy);
       signup(socket, breezyLogger);
       login(socket, breezyLogger);
       fetchUsers(socket, breezyLogger);
