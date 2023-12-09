@@ -1,3 +1,4 @@
+import {createRouterLogger, getRedaction} from '@utils/logger';
 import {
   disconnect,
   fetchProfile,
@@ -6,25 +7,19 @@ import {
   logout,
   signup,
   updateUserStatus,
-  verifyStatus,
   verifyToken
 } from '@events/projects/breezy';
-import {getRedaction, logger} from '@utils/logger';
 import type {Server} from 'socket.io';
 
 const breezyRouter = (server: Server): void => {
   const breezy = server.of('/project/breezy');
   breezy.use(verifyToken());
-  breezy.use(verifyStatus(breezy.sockets));
   getRedaction({module: '@events/projects/breezy'}).then((redaction): void => {
     breezy.on('connection', (socket): void => {
-      const breezyLogger = logger.child(
-        {
-          namespace: 'project/breezy',
-          socketid: socket.id
-        },
-        {redact: {paths: redaction, censor: '[redacted]'}}
-      );
+      const breezyLogger = createRouterLogger({
+        socket: socket,
+        redaction: redaction
+      });
       breezyLogger.info('socket connected');
       signup(socket, breezyLogger);
       login(socket, breezyLogger);
