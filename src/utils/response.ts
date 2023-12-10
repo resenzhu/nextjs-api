@@ -50,3 +50,22 @@ export const createSuccessResponse = ({
   error: {},
   data: data
 });
+
+export const obfuscateResponse = (response: ClientResponse): ClientResponse => {
+  if (!response.success) {
+    const errorResponse = response as ErrorResponse;
+    return {
+      ...errorResponse,
+      error: {
+        ...errorResponse.error,
+        message:
+          errorResponse.error.code === 500
+            ? 'internal server error.'
+            : errorResponse.error.code === 503
+              ? 'service unavailable.'
+              : errorResponse.error.message
+      }
+    };
+  }
+  return response;
+};
