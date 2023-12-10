@@ -1,7 +1,8 @@
 import {
   type ClientResponse,
   createErrorResponse,
-  createSuccessResponse
+  createSuccessResponse,
+  obfuscateResponse
 } from '@utils/response';
 import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
@@ -174,7 +175,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                   })
                   .catch((mailjetError: Error): void => {
                     const response: ClientResponse = createErrorResponse({
-                      code: '500',
+                      code: '503',
                       message:
                         'an error occured while attempting to send the email.'
                     });
@@ -182,22 +183,22 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                       {response: response, error: mailjetError.message},
                       `${event} failed`
                     );
-                    return callback(response);
+                    return callback(obfuscateResponse(response));
                   });
                 return undefined;
               })
               .catch((storageError: Error): void => {
                 removeItem('main contact form submissions').then((): void => {
                   const response: ClientResponse = createErrorResponse({
-                    code: '500',
+                    code: '503',
                     message:
-                      'an error occured while attempting to read the data.'
+                      'an error occured while attempting to access the storage file.'
                   });
                   logger.warn(
                     {response: response, error: storageError.message},
                     `${event} failed`
                   );
-                  return callback(response);
+                  return callback(obfuscateResponse(response));
                 });
               });
           });
@@ -205,14 +206,14 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
         })
         .catch((captchaError: Error): void => {
           const response: ClientResponse = createErrorResponse({
-            code: '500',
+            code: '503',
             message: 'an error occured while attempting to verify captcha.'
           });
           logger.warn(
             {response: response, error: captchaError.message},
             `${event} failed`
           );
-          return callback(response);
+          return callback(obfuscateResponse(response));
         });
       return undefined;
     }
