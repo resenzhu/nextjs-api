@@ -188,18 +188,17 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                 return undefined;
               })
               .catch((storageError: Error): void => {
-                removeItem('main contact form submissions').then((): void => {
-                  const response: ClientResponse = createErrorResponse({
-                    code: '503',
-                    message:
-                      'an error occured while attempting to access the storage file.'
-                  });
-                  logger.warn(
-                    {response: response, error: storageError.message},
-                    `${event} failed`
-                  );
-                  return callback(obfuscateResponse(response));
+                removeItem('main contact form submissions');
+                const response: ClientResponse = createErrorResponse({
+                  code: '503',
+                  message:
+                    'an error occured while attempting to access the storage file.'
                 });
+                logger.warn(
+                  {response: response, error: storageError.message},
+                  `${event} failed`
+                );
+                return callback(obfuscateResponse(response));
               });
           });
           return undefined;
