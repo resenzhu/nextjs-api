@@ -4,7 +4,7 @@ import {
   createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
-import {getItem, removeItem, setItem} from 'node-persist';
+import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
@@ -133,8 +133,8 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             return callback(response);
           }
           storage.then((): void => {
-            getItem('main contact form submissions')
-              .then((submissions: Submission[] | undefined): void => {
+            getItem('main contact form submissions').then(
+              (submissions: Submission[] | undefined): void => {
                 const todaySubmissions = submissions?.filter(
                   (submission): boolean =>
                     submission.submitter === btoa(userAgent) &&
@@ -186,20 +186,8 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     return callback(obfuscateResponse(response));
                   });
                 return undefined;
-              })
-              .catch((storageError: Error): void => {
-                removeItem('main contact form submissions');
-                const response: ClientResponse = createErrorResponse({
-                  code: '503',
-                  message:
-                    'an error occured while attempting to access the storage file.'
-                });
-                logger.warn(
-                  {response: response, error: storageError.message},
-                  `${event} failed`
-                );
-                return callback(obfuscateResponse(response));
-              });
+              }
+            );
           });
           return undefined;
         })
