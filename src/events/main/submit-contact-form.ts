@@ -176,8 +176,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                   .catch((mailjetError: Error): void => {
                     const response: ClientResponse = createErrorResponse({
                       code: '503',
-                      message:
-                        'an error occured while attempting to send the email.'
+                      message: 'an error occured while sending the email.'
                     });
                     logger.warn(
                       {response: response, error: mailjetError.message},
@@ -194,7 +193,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
         .catch((captchaError: Error): void => {
           const response: ClientResponse = createErrorResponse({
             code: '503',
-            message: 'an error occured while attempting to verify captcha.'
+            message: 'an error occured while verifying captcha.'
           });
           logger.warn(
             {response: response, error: captchaError.message},
