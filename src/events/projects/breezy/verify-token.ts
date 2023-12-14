@@ -46,61 +46,66 @@ const verifyTokenMiddleware =
           } else {
             const jwtPayload = decoded as JWTPayload;
             storage.then((): void => {
-              getItem('breezy users').then((users: User[]): void => {
-                let onlineUser: User | null = null;
-                const updatedUsers = users.map((user): User => {
-                  if (
-                    user.id === jwtPayload.id &&
-                    user.session.id === jwtPayload.session
-                  ) {
-                    const updatedUser: User = {
-                      ...user,
-                      session: {
-                        ...user.session,
-                        socket: socket.id,
-                        lastOnline:
-                          DateTime.utc().toISO() ?? new Date().toISOString()
-                      }
-                    };
-                    onlineUser = updatedUser;
-                    return updatedUser;
-                  }
-                  return user;
-                });
-                const ttl = DateTime.max(
-                  ...updatedUsers.map(
-                    (user): DateTime =>
-                      DateTime.fromISO(user.session.lastOnline, {
-                        zone: 'utc'
-                      })
-                  )
-                )
-                  .plus({weeks: 1})
-                  .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                  (): void => {
-                    if (onlineUser) {
-                      const userStatusNotif: UserStatusNotif = {
-                        user: {
-                          id: onlineUser.id,
+              getItem('breezy users')
+                .then((users: User[] | undefined): void => {
+                  if (users) {
+                    let onlineUser: User | null = null;
+                    const updatedUsers = users.map((user): User => {
+                      if (
+                        user.id === jwtPayload.id &&
+                        user.session.id === jwtPayload.session
+                      ) {
+                        const updatedUser: User = {
+                          ...user,
                           session: {
-                            status: onlineUser.session.status
-                              .replace('appear', '')
-                              .trim() as 'online' | 'away' | 'offline',
-                            lastOnline: onlineUser.session.lastOnline
+                            ...user.session,
+                            socket: socket.id,
+                            lastOnline:
+                              DateTime.utc().toISO() ?? new Date().toISOString()
                           }
+                        };
+                        onlineUser = updatedUser;
+                        return updatedUser;
+                      }
+                      return user;
+                    });
+                    const ttl = DateTime.max(
+                      ...updatedUsers.map(
+                        (user): DateTime =>
+                          DateTime.fromISO(user.session.lastOnline, {
+                            zone: 'utc'
+                          })
+                      )
+                    )
+                      .plus({weeks: 1})
+                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                      (): void => {
+                        if (onlineUser) {
+                          const userStatusNotif: UserStatusNotif = {
+                            user: {
+                              id: onlineUser.id,
+                              session: {
+                                status: onlineUser.session.status
+                                  .replace('appear', '')
+                                  .trim() as 'online' | 'away' | 'offline',
+                                lastOnline: onlineUser.session.lastOnline
+                              }
+                            }
+                          };
+                          socket.broadcast.emit(
+                            'update user status',
+                            userStatusNotif
+                          );
                         }
-                      };
-                      socket.broadcast.emit(
-                        'update user status',
-                        userStatusNotif
-                      );
-                    }
-                    breezyLogger.info(`${event} success`);
+                        breezyLogger.info(`${event} success`);
+                        next();
+                      }
+                    );
+                  } else {
                     next();
                   }
-                );
-              });
+                });
             });
           }
         }
