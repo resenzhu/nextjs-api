@@ -33,10 +33,8 @@ export const createErrorResponse = ({
 }): ErrorResponse => ({
   success: false,
   error: {
-    code: parseInt(code ?? '400', 10),
-    message:
-      message ??
-      'the server cannot process the request due to invalid syntax or malformed structure'
+    code: parseInt(code ?? '500', 10),
+    message: message ?? 'internal server error.'
   },
   data: {}
 });
