@@ -1,9 +1,10 @@
 import {
   type ClientResponse,
   createErrorResponse,
-  createSuccessResponse
+  createSuccessResponse,
+  obfuscateResponse
 } from '@utils/response';
-import {getItem, setItem} from 'node-persist';
+import {getItem, keys, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
@@ -226,28 +227,40 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
               );
             })
             .catch((storageError: Error): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while accessing the storage.'
-              });
-              logger.warn(
-                {response: response, error: storageError.message},
-                `${event} failed`
-              );
-              return callback(response);
+              keys()
+                .then((storageKeys): void => {
+                  for (const storageKey of storageKeys) {
+                    if (storageKey.startsWith('breezy')) {
+                      removeItem(storageKey);
+                    }
+                  }
+                })
+                .finally((): void => {
+                  socket.broadcast.emit('force logout');
+                  const response: ClientResponse = createErrorResponse({
+                    code: '503',
+                    message:
+                      'an error occured while accessing the storage file.'
+                  });
+                  logger.warn(
+                    {response: response, error: storageError.message},
+                    `${event} failed`
+                  );
+                  return callback(obfuscateResponse(response));
+                });
             });
           return undefined;
         })
         .catch((captchaError: Error): void => {
           const response: ClientResponse = createErrorResponse({
-            code: '500',
-            message: 'an error occured while attempting to verify captcha.'
+            code: '503',
+            message: 'an error occured while verifying captcha.'
           });
           logger.warn(
             {response: response, error: captchaError.message},
             `${event} failed`
           );
-          return callback(response);
+          return callback(obfuscateResponse(response));
         });
       return undefined;
     }
