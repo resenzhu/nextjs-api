@@ -255,6 +255,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                     }
                   })
                   .finally((): void => {
+                    socket.broadcast.emit('force logout');
                     const response: ClientResponse = createErrorResponse({
                       code: '503',
                       message:
