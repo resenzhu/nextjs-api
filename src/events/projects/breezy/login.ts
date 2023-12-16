@@ -135,7 +135,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                       if (!users || !account || !correctPassword) {
                         const response: ClientResponse = createErrorResponse({
                           code: '401',
-                          message: 'invalid username or password.'
+                          message: 'username or password is invalid.'
                         });
                         logger.warn({response: response}, `${event} failed`);
                         return callback(response);
