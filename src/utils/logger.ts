@@ -29,7 +29,7 @@ export const getRedaction = async ({
 }: {
   module: string;
 }): Promise<string[]> => {
-  const submodules = await Object.keys(await import(module));
+  const submodules = Object.keys(await import(module));
   const allRedaction = await Promise.all(
     submodules.map(
       async (submodule): Promise<string> =>
