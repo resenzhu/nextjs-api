@@ -8,7 +8,7 @@ import {getItem, keys, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import type {User} from '@events/projects/breezy/signup';
+import type {User} from '@events/projects/breezy';
 import {compare} from 'bcrypt';
 import joi from 'joi';
 import {nanoid} from 'nanoid';
