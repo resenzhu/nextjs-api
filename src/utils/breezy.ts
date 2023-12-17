@@ -43,7 +43,7 @@ export const verifyToken = (
                       ).weeks <= 1
                 );
                 if (!account) {
-                  reject(new Error('500#user is not found.'));
+                  reject(new Error('500|user is not found.'));
                 }
                 let onlineUser: User | null = null;
                 const updatedUsers = users.map((user): User => {
@@ -98,7 +98,7 @@ export const verifyToken = (
                   }
                 );
               } else {
-                reject(new Error('500#user is not found.'));
+                reject(new Error('500|user is not found.'));
               }
             })
             .catch((storageError: Error): void => {
@@ -120,7 +120,7 @@ export const verifyToken = (
             });
         });
       } catch (jwtError) {
-        reject(new Error(`401#token is missing or invalid.#${jwtError}`));
+        reject(new Error(`401|token is missing or invalid.|${jwtError}`));
       }
     }
   );
