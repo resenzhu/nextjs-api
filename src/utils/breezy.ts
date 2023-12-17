@@ -15,14 +15,13 @@ export type JWTPayload = {
 };
 
 export const verifyToken = (
-  socket: Socket,
-  token: string
+  socket: Socket
 ): Promise<JWTPayload | {response: ClientResponse; error: Error}> =>
   new Promise<JWTPayload | {response: ClientResponse; error: Error}>(
     (resolve, reject): void => {
       try {
         const decoded = verify(
-          token ?? '',
+          socket.handshake.auth.token ?? '',
           Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString()
         );
         const jwtPayload = decoded as JWTPayload;
