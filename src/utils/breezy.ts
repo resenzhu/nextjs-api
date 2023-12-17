@@ -5,7 +5,7 @@ import type {Socket} from 'socket.io';
 import {storage} from '@utils/storage';
 import {verify} from 'jsonwebtoken';
 
-export type JWTPayload = {
+export type JwtPayload = {
   id: string;
   session: string;
   iat: number;
@@ -13,14 +13,14 @@ export type JWTPayload = {
   sub: string;
 };
 
-export const verifyToken = (socket: Socket): Promise<JWTPayload | Error> =>
-  new Promise<JWTPayload | Error>((resolve, reject): void => {
+export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
+  new Promise<JwtPayload | Error>((resolve, reject): void => {
     try {
       const decoded = verify(
         socket.handshake.auth.token ?? '',
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString()
       );
-      const jwtPayload = decoded as JWTPayload;
+      const jwtPayload = decoded as JwtPayload;
       storage.then((): void => {
         getItem('breezy users')
           .then((users: User[] | undefined): void => {
