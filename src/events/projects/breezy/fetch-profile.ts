@@ -1,62 +1,69 @@
 import {
   type ClientResponse,
   createErrorResponse,
-  createSuccessResponse
+  createSuccessResponse,
+  obfuscateResponse
 } from '@utils/response';
-import {type VerifyErrors, verify} from 'jsonwebtoken';
-import type {JWTPayload} from '@events/projects/breezy/verify-token';
+import type {JWTPayload, User} from '@events/projects/breezy';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import type {User} from '@events/projects/breezy/signup';
 import {getItem} from 'node-persist';
 import {storage} from '@utils/storage';
+import {verifyJwt} from '@utils/breezy';
 
 const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
   const event: string = 'fetch profile';
   socket.on(event, (callback: (response: ClientResponse) => void): void => {
     logger.info(event);
-    const {token} = socket.handshake.auth;
-    verify(
-      token ?? '',
-      Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
-      // eslint-disable-next-line
-      (jwtError: VerifyErrors | null, decoded: any): void => {
-        if (jwtError) {
-          const response: ClientResponse = createErrorResponse({
-            code: '401',
-            message: 'missing or invalid token.'
-          });
-          logger.warn({response: response}, `${event} failed`);
-          return callback(response);
-        }
-        const jwtPayload = decoded as JWTPayload;
+    verifyJwt(socket)
+      .then((jwtPayload): void => {
+        const verifiedJwt = jwtPayload as JWTPayload;
         storage.then((): void => {
           getItem('breezy users').then((users: User[]): void => {
             const account = users.find(
-              (user): boolean => user.id === jwtPayload.id
+              (user): boolean => user.id === verifiedJwt.id
             );
+            if (!account) {
+              const response: ClientResponse = createErrorResponse({
+                code: '500',
+                message: 'user was not found.'
+              });
+              logger.warn({response: response}, `${event} failed`);
+              return callback(response);
+            }
             const response: ClientResponse = createSuccessResponse({
               data: {
-                user: account
-                  ? {
-                      id: account.id,
-                      username: account.username,
-                      displayName: account.displayName,
-                      session: {
-                        status: account.session.status,
-                        lastOnline: account.session.lastOnline
-                      }
-                    }
-                  : undefined
+                user: {
+                  id: account.id,
+                  username: account.username,
+                  displayName: account.displayName,
+                  session: {
+                    status: account.session.status,
+                    lastOnline: account.session.lastOnline
+                  }
+                }
               }
             });
             logger.info({response: response}, `${event} success`);
             return callback(response);
           });
         });
-        return undefined;
-      }
-    );
+      })
+      .catch((jwtError: Error): void => {
+        const response: ClientResponse = createErrorResponse({
+          code: jwtError.message.split('|')[0],
+          message: jwtError.message.split('|')[1]
+        });
+        logger.warn(
+          {
+            response: response,
+            error:
+              jwtError.message.split('|')[2] ?? jwtError.message.split('|')[1]
+          },
+          `${event} failed`
+        );
+        return callback(obfuscateResponse(response));
+      });
   });
 };
 
