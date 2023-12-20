@@ -1,9 +1,8 @@
+import type {User, UserStatusNotif} from '@events/projects/breezy';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import type {User} from '@events/projects/breezy/signup';
-import type {UserStatusNotif} from '@events/projects/breezy/login';
 import {storage} from '@utils/storage';
 
 const disconnectEvent = (socket: Socket, logger: Logger): void => {
