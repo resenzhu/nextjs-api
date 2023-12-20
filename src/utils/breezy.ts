@@ -109,7 +109,7 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
               .finally((): void => {
                 reject(
                   new Error(
-                    `500#an error occured while accessing the storage file.#${storageError.message}`
+                    `500|an error occured while accessing the storage file.|${storageError.message}`
                   )
                 );
               });
