@@ -1,19 +1,18 @@
 import {
   type ClientResponse,
   createErrorResponse,
-  createSuccessResponse
+  createSuccessResponse,
+  obfuscateResponse
 } from '@utils/response';
-import {type VerifyErrors, verify} from 'jsonwebtoken';
+import type {JWTPayload, User, UserStatusNotif} from '@events/projects/breezy';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
-import type {JWTPayload} from '@events/projects/breezy/verify-token';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import type {User} from '@events/projects/breezy/signup';
-import type {UserStatusNotif} from '@events/projects/breezy/login';
 import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
 import {storage} from '@utils/storage';
+import {verifyJwt} from '@utils/breezy';
 
 type UpdateUserStatusReq = {
   status: 'online' | 'appear away' | 'appear offline';
@@ -28,21 +27,9 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
       callback: (response: ClientResponse) => void
     ): void => {
       logger.info({request: request}, event);
-      const {token} = socket.handshake.auth;
-      verify(
-        token ?? '',
-        Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString(),
-        // eslint-disable-next-line
-        (jwtError: VerifyErrors | null, decoded: any): void => {
-          if (jwtError) {
-            const response: ClientResponse = createErrorResponse({
-              code: '401',
-              message: 'missing or invalid token.'
-            });
-            logger.warn({response: response}, `${event} failed`);
-            return callback(response);
-          }
-          const jwtPayload = decoded as JWTPayload;
+      verifyJwt(socket)
+        .then((jwtPayload): void => {
+          const verifiedJwt = jwtPayload as JWTPayload;
           const requestSchema = joi.object({
             status: joi
               .string()
@@ -77,7 +64,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
               let timestamp =
                 DateTime.utc().toISO() ?? new Date().toISOString();
               const updatedUsers = users.map((user): User => {
-                if (user.id === jwtPayload.id) {
+                if (user.id === verifiedJwt.id) {
                   const updatedUser: User = {
                     ...user,
                     session: {
@@ -140,9 +127,22 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
               );
             });
           });
-          return undefined;
-        }
-      );
+        })
+        .catch((jwtError): void => {
+          const response: ClientResponse = createErrorResponse({
+            code: jwtError.message.split('|')[0],
+            message: jwtError.message.split('|')[1]
+          });
+          logger.warn(
+            {
+              response: response,
+              error:
+                jwtError.message.split('|')[2] ?? jwtError.message.split('|')[1]
+            },
+            `${event} failed`
+          );
+          return callback(obfuscateResponse(response));
+        });
     }
   );
 };
