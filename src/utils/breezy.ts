@@ -39,7 +39,7 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                     ).weeks <= 1
               );
               if (!account) {
-                reject(new Error('500|user is not found.'));
+                reject(new Error('500|user was not found.'));
               }
               let onlineUser: User | null = null;
               const updatedUsers = users.map((user): User => {
@@ -94,7 +94,7 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                 }
               );
             } else {
-              reject(new Error('500|user is not found.'));
+              reject(new Error('500|user was not found.'));
             }
           })
           .catch((storageError: Error): void => {
