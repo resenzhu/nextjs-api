@@ -4,13 +4,21 @@ import {
   createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
-import type {JWTPayload, User, UserStatusNotif} from '@events/projects/breezy';
 import type {Namespace, Socket} from 'socket.io';
+import type {User, UserStatusNotif} from '@events/projects/breezy';
 import {getItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import {storage} from '@utils/storage';
 import {verifyJwt} from '@utils/breezy';
+
+type JWTPayload = {
+  id: string;
+  session: string;
+  iat: number;
+  iss: string;
+  sub: string;
+};
 
 const fetchUsersEvent = (
   socket: Socket,
@@ -111,4 +119,5 @@ const fetchUsersEvent = (
   });
 };
 
+export type {JWTPayload};
 export default fetchUsersEvent;
