@@ -4,7 +4,7 @@ import {
   createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
-import {getItem, keys, removeItem, setItem} from 'node-persist';
+import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
@@ -246,26 +246,17 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                 return undefined;
               })
               .catch((storageError: Error): void => {
-                keys()
-                  .then((storageKeys): void => {
-                    for (const storageKey of storageKeys) {
-                      if (storageKey.startsWith('breezy')) {
-                        removeItem(storageKey);
-                      }
-                    }
-                  })
-                  .finally((): void => {
-                    const response: ClientResponse = createErrorResponse({
-                      code: '503',
-                      message:
-                        'an error occured while accessing the storage file.'
-                    });
-                    logger.warn(
-                      {response: response, error: storageError.message},
-                      `${event} failed`
-                    );
-                    return callback(obfuscateResponse(response));
-                  });
+                removeItem('breezy users');
+                socket.broadcast.emit('force logout');
+                const response: ClientResponse = createErrorResponse({
+                  code: '503',
+                  message: 'an error occured while accessing the storage file.'
+                });
+                logger.warn(
+                  {response: response, error: storageError.message},
+                  `${event} failed`
+                );
+                return callback(obfuscateResponse(response));
               });
           });
           return undefined;
