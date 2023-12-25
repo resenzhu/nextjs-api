@@ -249,7 +249,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                 removeItem('breezy users');
                 socket.broadcast.emit('force logout');
                 const response: ClientResponse = createErrorResponse({
-                  code: '503',
+                  code: '500',
                   message: 'an error occured while accessing the storage file.'
                 });
                 logger.warn(
