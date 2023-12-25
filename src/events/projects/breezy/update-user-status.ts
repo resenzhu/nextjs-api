@@ -127,6 +127,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
               );
             });
           });
+          return undefined;
         })
         .catch((jwtError): void => {
           const response: ClientResponse = createErrorResponse({
