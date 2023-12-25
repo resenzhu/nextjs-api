@@ -1,5 +1,5 @@
 import type {User, UserStatusNotif} from '@events/projects/breezy';
-import {getItem, keys, removeItem, setItem} from 'node-persist';
+import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Socket} from 'socket.io';
 import {storage} from '@utils/storage';
@@ -98,21 +98,12 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
             }
           })
           .catch((storageError: Error): void => {
-            keys()
-              .then((storageKeys): void => {
-                for (const storageKey of storageKeys) {
-                  if (storageKey.startsWith('breezy')) {
-                    removeItem(storageKey);
-                  }
-                }
-              })
-              .finally((): void => {
-                reject(
-                  new Error(
-                    `500|an error occured while accessing the storage file.|${storageError.message}`
-                  )
-                );
-              });
+            removeItem('breezy users');
+            reject(
+              new Error(
+                `500|an error occured while accessing the storage file.|${storageError.message}`
+              )
+            );
           });
       });
     } catch (jwtError) {
