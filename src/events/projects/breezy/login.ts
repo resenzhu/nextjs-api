@@ -4,7 +4,7 @@ import {
   createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
-import {getItem, keys, removeItem, setItem} from 'node-persist';
+import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
@@ -114,141 +114,128 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
-          storage
-            .then((): void => {
-              getItem('breezy users').then(
-                (users: User[] | undefined): void => {
-                  const account = users?.find(
-                    (user): boolean =>
-                      user.username === data.username &&
-                      DateTime.utc()
-                        .endOf('day')
-                        .diff(
-                          DateTime.fromISO(user.session.lastOnline)
-                            .toUTC()
-                            .startOf('day'),
-                          ['weeks']
-                        ).weeks <= 1
-                  );
-                  compare(data.password, account?.password ?? '').then(
-                    (correctPassword): void => {
-                      if (!users || !account || !correctPassword) {
-                        const response: ClientResponse = createErrorResponse({
-                          code: '401',
-                          message: 'username or password is invalid.'
-                        });
-                        logger.warn({response: response}, `${event} failed`);
-                        return callback(response);
+          storage.then((): void => {
+            getItem('breezy users')
+              .then((users: User[] | undefined): void => {
+                const account = users?.find(
+                  (user): boolean =>
+                    user.username === data.username &&
+                    DateTime.utc()
+                      .endOf('day')
+                      .diff(
+                        DateTime.fromISO(user.session.lastOnline)
+                          .toUTC()
+                          .startOf('day'),
+                        ['weeks']
+                      ).weeks <= 1
+                );
+                compare(data.password, account?.password ?? '').then(
+                  (correctPassword): void => {
+                    if (!users || !account || !correctPassword) {
+                      const response: ClientResponse = createErrorResponse({
+                        code: '401',
+                        message: 'username or password is invalid.'
+                      });
+                      logger.warn({response: response}, `${event} failed`);
+                      return callback(response);
+                    }
+                    let oldSocket: string | null = null;
+                    let persistentStatus: typeof account.session.status =
+                      'online';
+                    const newSessionId = nanoid();
+                    const timestamp =
+                      DateTime.utc().toISO() ?? new Date().toISOString();
+                    const updatedUsers = users.map((user): User => {
+                      if (user.id === account.id) {
+                        oldSocket = user.session.socket;
+                        const updatedUser: User = {
+                          ...user,
+                          session: {
+                            ...user.session,
+                            id: newSessionId,
+                            socket: socket.id,
+                            status:
+                              user.session.status === 'offline'
+                                ? persistentStatus
+                                : user.session.status,
+                            lastOnline: timestamp
+                          }
+                        };
+                        persistentStatus = updatedUser.session.status;
+                        return updatedUser;
                       }
-                      let oldSocket: string | null = null;
-                      let persistentStatus: typeof account.session.status =
-                        'online';
-                      const newSessionId = nanoid();
-                      const timestamp =
-                        DateTime.utc().toISO() ?? new Date().toISOString();
-                      const updatedUsers = users.map((user): User => {
-                        if (user.id === account.id) {
-                          oldSocket = user.session.socket;
-                          const updatedUser: User = {
-                            ...user,
+                      return user;
+                    });
+                    const ttl = DateTime.max(
+                      ...updatedUsers.map(
+                        (user): DateTime =>
+                          DateTime.fromISO(user.session.lastOnline, {
+                            zone: 'utc'
+                          })
+                      )
+                    )
+                      .plus({weeks: 1})
+                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
+                      (): void => {
+                        if (oldSocket) {
+                          socket.broadcast
+                            .to(oldSocket)
+                            .emit('logout old session');
+                        }
+                        const userStatusNotif: UserStatusNotif = {
+                          user: {
+                            id: account.id,
                             session: {
-                              ...user.session,
-                              id: newSessionId,
-                              socket: socket.id,
-                              status:
-                                user.session.status === 'offline'
-                                  ? persistentStatus
-                                  : user.session.status,
+                              status: persistentStatus
+                                .replace('appear', '')
+                                .trim() as 'online' | 'away' | 'offline',
                               lastOnline: timestamp
                             }
-                          };
-                          persistentStatus = updatedUser.session.status;
-                          return updatedUser;
-                        }
-                        return user;
-                      });
-                      const ttl = DateTime.max(
-                        ...updatedUsers.map(
-                          (user): DateTime =>
-                            DateTime.fromISO(user.session.lastOnline, {
-                              zone: 'utc'
-                            })
-                        )
-                      )
-                        .plus({weeks: 1})
-                        .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                      setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                        (): void => {
-                          if (oldSocket) {
-                            socket.broadcast
-                              .to(oldSocket)
-                              .emit('logout old session');
                           }
-                          const userStatusNotif: UserStatusNotif = {
-                            user: {
-                              id: account.id,
-                              session: {
-                                status: persistentStatus
-                                  .replace('appear', '')
-                                  .trim() as 'online' | 'away' | 'offline',
-                                lastOnline: timestamp
+                        };
+                        socket.broadcast.emit(
+                          'update user status',
+                          userStatusNotif
+                        );
+                        const response: ClientResponse = createSuccessResponse({
+                          data: {
+                            token: sign(
+                              {id: account.id, session: newSessionId},
+                              Buffer.from(
+                                process.env.JWT_KEY_PRIVATE_BASE64,
+                                'base64'
+                              ).toString(),
+                              {
+                                algorithm: 'RS256',
+                                issuer: 'resen',
+                                subject: account.username
                               }
-                            }
-                          };
-                          socket.broadcast.emit(
-                            'update user status',
-                            userStatusNotif
-                          );
-                          const response: ClientResponse =
-                            createSuccessResponse({
-                              data: {
-                                token: sign(
-                                  {id: account.id, session: newSessionId},
-                                  Buffer.from(
-                                    process.env.JWT_KEY_PRIVATE_BASE64,
-                                    'base64'
-                                  ).toString(),
-                                  {
-                                    algorithm: 'RS256',
-                                    issuer: 'resen',
-                                    subject: account.username
-                                  }
-                                )
-                              }
-                            });
-                          logger.info({response: response}, `${event} success`);
-                          return callback(response);
-                        }
-                      );
-                      return undefined;
-                    }
-                  );
-                }
-              );
-            })
-            .catch((storageError: Error): void => {
-              keys()
-                .then((storageKeys): void => {
-                  for (const storageKey of storageKeys) {
-                    if (storageKey.startsWith('breezy')) {
-                      removeItem(storageKey);
-                    }
+                            )
+                          }
+                        });
+                        logger.info({response: response}, `${event} success`);
+                        return callback(response);
+                      }
+                    );
+                    return undefined;
                   }
-                })
-                .finally((): void => {
-                  socket.broadcast.emit('force logout');
-                  const response: ClientResponse = createErrorResponse({
-                    code: '503',
-                    message:
-                      'an error occured while accessing the storage file.'
-                  });
-                  logger.warn(
-                    {response: response, error: storageError.message},
-                    `${event} failed`
-                  );
-                  return callback(obfuscateResponse(response));
+                );
+              })
+              .catch((storageError: Error): void => {
+                removeItem('breezy users');
+                socket.broadcast.emit('force logout');
+                const response: ClientResponse = createErrorResponse({
+                  code: '503',
+                  message: 'an error occured while accessing the storage file.'
                 });
-            });
+                logger.warn(
+                  {response: response, error: storageError.message},
+                  `${event} failed`
+                );
+                return callback(obfuscateResponse(response));
+              });
+          });
           return undefined;
         })
         .catch((captchaError: Error): void => {
