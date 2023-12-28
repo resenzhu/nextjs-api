@@ -1,56 +1,66 @@
 import type {User, UserStatusNotif} from '@events/projects/breezy';
-import {getItem, setItem} from 'node-persist';
+import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import {storage} from '@utils/storage';
 
 const disconnectEvent = (socket: Socket, logger: Logger): void => {
-  socket.on('disconnect', (): void => {
-    logger.info('socket disconnected');
+  const event: string = 'disconnect';
+  socket.on(event, (): void => {
     storage.then((): void => {
-      getItem('breezy users').then((users: User[] | undefined): void => {
-        if (users) {
-          let offlineUser: User | null = null;
-          const updatedUsers = users.map((user): User => {
-            if (user.session.socket === socket.id) {
-              const updatedUser: User = {
-                ...user,
-                session: {
-                  ...user.session,
-                  socket: null,
-                  lastOnline: DateTime.utc().toISO() ?? new Date().toISOString()
-                }
-              };
-              offlineUser = updatedUser;
-              return updatedUser;
-            }
-            return user;
-          });
-          const ttl = DateTime.max(
-            ...updatedUsers.map(
-              (user): DateTime =>
-                DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
-            )
-          )
-            .plus({weeks: 1})
-            .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-          setItem('breezy users', updatedUsers, {ttl: ttl}).then((): void => {
-            if (offlineUser) {
-              const userStatusNotif: UserStatusNotif = {
-                user: {
-                  id: offlineUser.id,
+      getItem('breezy users')
+        .then((users: User[] | undefined): void => {
+          if (users) {
+            let offlineUser: User | null = null;
+            const updatedUsers = users.map((user): User => {
+              if (user.session.socket === socket.id) {
+                const updatedUser: User = {
+                  ...user,
                   session: {
-                    status: 'offline',
-                    lastOnline: offlineUser.session.lastOnline
+                    ...user.session,
+                    socket: null,
+                    lastOnline:
+                      DateTime.utc().toISO() ?? new Date().toISOString()
                   }
-                }
-              };
-              socket.broadcast.emit('update user status', userStatusNotif);
-            }
-          });
-        }
-      });
+                };
+                offlineUser = updatedUser;
+                return updatedUser;
+              }
+              return user;
+            });
+            const ttl = DateTime.max(
+              ...updatedUsers.map(
+                (user): DateTime =>
+                  DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
+              )
+            )
+              .plus({weeks: 1})
+              .diff(DateTime.utc(), ['milliseconds']).milliseconds;
+            setItem('breezy users', updatedUsers, {ttl: ttl}).then((): void => {
+              if (offlineUser) {
+                const userStatusNotif: UserStatusNotif = {
+                  user: {
+                    id: offlineUser.id,
+                    session: {
+                      status: 'offline',
+                      lastOnline: offlineUser.session.lastOnline
+                    }
+                  }
+                };
+                socket.broadcast.emit('update user status', userStatusNotif);
+              }
+            });
+          }
+        })
+        .then((): void => {
+          logger.info('socket disconnected');
+        })
+        .catch((storageError: Error): void => {
+          logger.warn({error: storageError.message}, `${event} error`);
+          removeItem('breezy users');
+          socket.broadcast.emit('force logout');
+        });
     });
   });
 };
