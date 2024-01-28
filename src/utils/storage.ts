@@ -1,6 +1,3 @@
 import {init} from 'node-persist';
 
-export const storage = init({
-  dir: 'storage',
-  writeQueueWriteOnlyLast: false
-});
+export const storage = init({dir: 'storage'});
