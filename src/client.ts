@@ -95,6 +95,7 @@ const breezyEvent: {
   fetchUsers: () => void;
   fetchProfile: () => void;
   updateUserStatus: () => void;
+  logout: () => void;
   skip: () => void;
 } = {
   signup: (): void => {
@@ -132,10 +133,13 @@ const breezyEvent: {
   updateUserStatus: (): void => {
     call(breezySocket, 'update user status', {status: 'appear away'});
   },
+  logout: (): void => {
+    call(breezySocket, 'logout');
+  },
   skip: (): void => {
     breezySocket.disconnect();
   }
 };
 
 mainEvent.skip();
-breezyEvent.signup();
+breezyEvent.skip();
