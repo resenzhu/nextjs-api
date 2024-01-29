@@ -31,7 +31,6 @@
     "luxon": "^3.4.4",
     "nanoid": "^3.3.6",
     "node-mailjet": "^6.0.5",
-    "node-persist": "^4.0.1",
     "pino": "^8.17.2",
     "socket.io": "^4.7.4"
   },
