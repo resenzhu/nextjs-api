@@ -10,6 +10,9 @@ declare namespace NodeJS {
     MAILJET_KEY_SECRET: string;
     MAILJET_USER_NAME: string;
     MAILJET_USER_EMAIL: string;
+    MYSQL_HOST: string;
+    MYSQL_USER: string;
+    MYSQL_PASSWORD: string;
     NODE_ENV: 'development' | 'production';
   }
 }
