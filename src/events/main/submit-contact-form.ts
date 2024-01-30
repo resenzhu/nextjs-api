@@ -1,17 +1,16 @@
 import {
   type ClientResponse,
   createErrorResponse,
-  createSuccessResponse,
+  //createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
-import {getItem, removeItem, setItem} from 'node-persist';
-import {DateTime} from 'luxon';
+//import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
+import {database} from '@utils/database';
 import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
-import {sendEmail} from '@utils/email';
-import {storage} from '@utils/storage';
+//import {sendEmail} from '@utils/email';
 import {verifyRecaptcha} from '@utils/recaptcha';
 
 type SubmitContactFormReq = {
@@ -132,73 +131,83 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
-          storage.then((): void => {
-            getItem('main contact form submissions')
-              .then((submissions: Submission[] | undefined): void => {
-                const todaySubmissions = submissions?.filter(
-                  (submission): boolean =>
-                    submission.submitter === btoa(userAgent) &&
-                    DateTime.fromISO(submission.timestamp).toISODate() ===
-                      DateTime.utc().toLocal().toISODate()
-                );
-                if (todaySubmissions && todaySubmissions.length === 5) {
-                  const response: ClientResponse = createErrorResponse({
-                    code: '429',
-                    message: 'too many requests.'
-                  });
-                  logger.warn({response: response}, `${event} failed`);
-                  return callback(response);
-                }
-                sendEmail({
-                  name: data.name,
-                  email: data.email,
-                  message: data.message
-                })
-                  .then((): void => {
-                    const newSubmission: Submission = {
-                      submitter: btoa(userAgent),
-                      timestamp:
-                        DateTime.utc().toISO() ??
-                        new Date(Date.now()).toISOString()
-                    };
-                    setItem(
-                      'main contact form submissions',
-                      [...(submissions ?? []), newSubmission],
-                      {ttl: 2 * 24 * 60 * 60 * 1000}
-                    ).then((): void => {
-                      const response: ClientResponse = createSuccessResponse(
-                        {}
-                      );
-                      logger.info({response: response}, `${event} success`);
-                      return callback(response);
-                    });
-                  })
-                  .catch((mailjetError: Error): void => {
-                    const response: ClientResponse = createErrorResponse({
-                      code: '503',
-                      message: 'an error occured while sending the email.'
-                    });
-                    logger.warn(
-                      {response: response, error: mailjetError.message},
-                      `${event} failed`
-                    );
-                    return callback(obfuscateResponse(response));
-                  });
-                return undefined;
-              })
-              .catch((storageError: Error): void => {
-                removeItem('main contact form submissions');
-                const response: ClientResponse = createErrorResponse({
-                  code: '500',
-                  message: 'an error occured while accessing the storage file.'
-                });
-                logger.warn(
-                  {response: response, error: storageError.message},
-                  `${event} failed`
-                );
-                return callback(obfuscateResponse(response));
-              });
+          database.getConnection().then((connection): void => {
+            console.log(connection);
+            connection.execute('USE nextjs');
+            connection.execute('SELECT submitter FROM main_contact_submissions WHERE submitter = ? AND DATE(created_at) = CURDATE()', [btoa(userAgent)]).then((results) => {
+              connection.release();
+              console.log(results);
+            });
+          }).catch((connectionError) => {
+            console.log(connectionError);
           });
+          // storage.then((): void => {
+          //   getItem('main contact form submissions')
+          //     .then((submissions: Submission[] | undefined): void => {
+          //       const todaySubmissions = submissions?.filter(
+          //         (submission): boolean =>
+          //           submission.submitter === btoa(userAgent) &&
+          //           DateTime.fromISO(submission.timestamp).toISODate() ===
+          //             DateTime.utc().toLocal().toISODate()
+          //       );
+          //       if (todaySubmissions && todaySubmissions.length === 5) {
+          //         const response: ClientResponse = createErrorResponse({
+          //           code: '429',
+          //           message: 'too many requests.'
+          //         });
+          //         logger.warn({response: response}, `${event} failed`);
+          //         return callback(response);
+          //       }
+          //       sendEmail({
+          //         name: data.name,
+          //         email: data.email,
+          //         message: data.message
+          //       })
+          //         .then((): void => {
+          //           const newSubmission: Submission = {
+          //             submitter: btoa(userAgent),
+          //             timestamp:
+          //               DateTime.utc().toISO() ??
+          //               new Date(Date.now()).toISOString()
+          //           };
+          //           setItem(
+          //             'main contact form submissions',
+          //             [...(submissions ?? []), newSubmission],
+          //             {ttl: 2 * 24 * 60 * 60 * 1000}
+          //           ).then((): void => {
+          //             const response: ClientResponse = createSuccessResponse(
+          //               {}
+          //             );
+          //             logger.info({response: response}, `${event} success`);
+          //             return callback(response);
+          //           });
+          //         })
+          //         .catch((mailjetError: Error): void => {
+          //           const response: ClientResponse = createErrorResponse({
+          //             code: '503',
+          //             message: 'an error occured while sending the email.'
+          //           });
+          //           logger.warn(
+          //             {response: response, error: mailjetError.message},
+          //             `${event} failed`
+          //           );
+          //           return callback(obfuscateResponse(response));
+          //         });
+          //       return undefined;
+          //     })
+          //     .catch((storageError: Error): void => {
+          //       removeItem('main contact form submissions');
+          //       const response: ClientResponse = createErrorResponse({
+          //         code: '500',
+          //         message: 'an error occured while accessing the storage file.'
+          //       });
+          //       logger.warn(
+          //         {response: response, error: storageError.message},
+          //         `${event} failed`
+          //       );
+          //       return callback(obfuscateResponse(response));
+          //     });
+          // });
           return undefined;
         })
         .catch((captchaError: Error): void => {
