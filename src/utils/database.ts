@@ -1,4 +1,9 @@
-import mysql from 'mysql2';
+import {config} from 'dotenv';
+import mysql from 'mysql2/promise';
+
+if (process.env.NODE_ENV !== 'production') {
+  config();
+}
 
 export const database = mysql.createPool({
   host: process.env.MYSQL_HOST,
