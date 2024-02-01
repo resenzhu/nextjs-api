@@ -4,6 +4,7 @@ import {
   //createSuccessResponse,
   obfuscateResponse
 } from '@utils/response';
+import type {QueryError, RowDataPacket} from 'mysql2';
 //import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
@@ -131,16 +132,43 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             logger.warn({response: response}, `${event} failed`);
             return callback(response);
           }
-          database.getConnection().then((connection): void => {
-            console.log(connection);
-            connection.execute('USE nextjs');
-            connection.execute('SELECT submitter FROM main_contact_submissions WHERE submitter = ? AND DATE(created_at) = CURDATE()', [btoa(userAgent)]).then((results) => {
-              connection.release();
-              console.log(results);
+          database
+            .getConnection()
+            .then((connection): void => {
+              connection
+                .execute(
+                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(created_at) = CURDATE()',
+                  {submitter: btoa(userAgent)}
+                )
+                .then((rowDataPacket) => {
+                  const results = rowDataPacket[0] as RowDataPacket[];
+                })
+                .catch((queryError: QueryError): void => {
+                  const response: ClientResponse = createErrorResponse({
+                    code: '500',
+                    message: 'an error occured while executing the query.'
+                  });
+                  logger.warn(
+                    {response: response, error: queryError.message},
+                    `${event} failed`
+                  );
+                  return callback(obfuscateResponse(response));
+                })
+                .finally((): void => {
+                  connection.release();
+                });
+            })
+            .catch((connectionError: NodeJS.ErrnoException): void => {
+              const response: ClientResponse = createErrorResponse({
+                code: '500',
+                message: 'an error occured while connecting to database.'
+              });
+              logger.warn(
+                {response: response, error: connectionError.message},
+                `${event} failed`
+              );
+              return callback(obfuscateResponse(response));
             });
-          }).catch((connectionError) => {
-            console.log(connectionError);
-          });
           // storage.then((): void => {
           //   getItem('main contact form submissions')
           //     .then((submissions: Submission[] | undefined): void => {
