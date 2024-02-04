@@ -133,8 +133,11 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             .then((connection): void => {
               connection
                 .execute(
-                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(created_at) = CURDATE()',
-                  {submitter: btoa(userAgent)}
+                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(created_at) = :currentDate',
+                  {
+                    submitter: btoa(userAgent),
+                    currentDate: DateTime.utc().toISODate()
+                  }
                 )
                 .then((rowDataPacket): void => {
                   const rows = rowDataPacket[0] as RowDataPacket[];
