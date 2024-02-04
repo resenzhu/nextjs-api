@@ -17,11 +17,6 @@ type SubmitContactFormReq = {
   recaptcha: string;
 };
 
-type Submission = {
-  submitter: string;
-  timestamp: string;
-};
-
 const redact: string[] = ['request.name', 'request.email', 'request.recaptcha'];
 
 const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
@@ -251,5 +246,5 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
 };
 
 export {redact};
-export type {SubmitContactFormReq, Submission};
+export type {SubmitContactFormReq};
 export default submitContactFormEvent;

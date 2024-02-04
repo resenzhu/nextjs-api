@@ -5,6 +5,5 @@ export {
 export {default as disconnect} from '@events/main/disconnect';
 export {
   default as submitContactForm,
-  type SubmitContactFormReq,
-  type Submission
+  type SubmitContactFormReq
 } from '@events/main/submit-contact-form';
