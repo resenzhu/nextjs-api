@@ -1,4 +1,4 @@
-import type {QueryError, RowDataPacket} from 'mysql2';
+import type {QueryError, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
