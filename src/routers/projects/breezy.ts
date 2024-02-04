@@ -1,12 +1,12 @@
 import {createRouterLogger, getRedaction} from '@utils/logger';
 import {
-  disconnect,
-  fetchProfile,
-  fetchUsers,
-  login,
-  logout,
-  signup,
-  updateUserStatus
+  // disconnect,
+  // fetchProfile,
+  // fetchUsers,
+  // login,
+  // logout,
+  signup
+  // updateUserStatus
 } from '@events/projects/breezy';
 import type {Logger} from 'pino';
 import type {Server} from 'socket.io';
@@ -24,12 +24,12 @@ const breezyRouter = (server: Server): void => {
       }
       breezyLogger.info('socket connected');
       signup(socket, breezyLogger);
-      login(socket, breezyLogger);
-      fetchUsers(socket, breezyLogger, {namespace: breezy});
-      fetchProfile(socket, breezyLogger);
-      updateUserStatus(socket, breezyLogger);
-      logout(socket, breezyLogger);
-      disconnect(socket, breezyLogger);
+      // login(socket, breezyLogger);
+      // fetchUsers(socket, breezyLogger, {namespace: breezy});
+      // fetchProfile(socket, breezyLogger);
+      // updateUserStatus(socket, breezyLogger);
+      // logout(socket, breezyLogger);
+      // disconnect(socket, breezyLogger);
     });
   });
 };
