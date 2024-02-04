@@ -1,3 +1,5 @@
+import type {Logger} from 'pino';
+
 export type ErrorResponse = {
   success: false;
   error: {
@@ -13,57 +15,55 @@ export type SuccessResponse = {
   data: object;
 };
 
-export type ClientResponse = {
-  success: boolean;
-  error:
+export type Response = ErrorResponse | SuccessResponse;
+
+export const createResponse = (
+  parameter:
     | {
-        code: number;
+        event: string;
+        logger: Logger;
+        code: string;
         message: string;
+        detail?: string;
       }
-    | Record<string, never>;
-  data: object;
-};
-
-export const createErrorResponse = ({
-  code,
-  message
-}: {
-  code: string | undefined;
-  message: string | undefined;
-}): ErrorResponse => ({
-  success: false,
-  error: {
-    code: parseInt(code ?? '500', 10),
-    message: message ?? 'internal server error.'
-  },
-  data: {}
-});
-
-export const createSuccessResponse = ({
-  data = {}
-}: {
-  data?: object;
-}): SuccessResponse => ({
-  success: true,
-  error: {},
-  data: data
-});
-
-export const obfuscateResponse = (response: ClientResponse): ClientResponse => {
-  if (!response.success) {
-    const errorResponse = response as ErrorResponse;
-    return {
-      ...errorResponse,
+    | {event: string; logger: Logger; data?: object}
+): Response => {
+  if ('code' in parameter) {
+    const {event, logger, code, message, detail} = parameter;
+    let response: Response = {
+      success: false,
       error: {
-        ...errorResponse.error,
-        message:
-          errorResponse.error.code === 500
-            ? 'internal server error.'
-            : errorResponse.error.code === 503
-              ? 'service unavailable.'
-              : errorResponse.error.message
-      }
+        code: parseInt(code ?? '500', 10),
+        message: message ?? 'internal server error.'
+      },
+      data: {}
     };
+    logger.warn(
+      detail ? {response: response, error: detail} : {response: response},
+      `${event} failed`
+    );
+    if ([500, 503].includes(response.error.code)) {
+      response = {
+        ...response,
+        error: {
+          ...response.error,
+          message:
+            response.error.code === 500
+              ? 'internal server error.'
+              : response.error.code === 503
+                ? 'service unavailable.'
+                : response.error.message
+        }
+      };
+    }
+    return response;
   }
+  const {event, logger, data} = parameter;
+  const response: Response = {
+    success: true,
+    error: {},
+    data: data ?? {}
+  };
+  logger.info({response: response}, `${event} success`);
   return response;
 };
