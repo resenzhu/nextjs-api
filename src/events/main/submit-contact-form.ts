@@ -1,17 +1,12 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  //createSuccessResponse,
-  obfuscateResponse
-} from '@utils/response';
 import type {QueryError, RowDataPacket} from 'mysql2';
-//import {DateTime} from 'luxon';
+import {type Response, createResponse} from '@utils/response';
+import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
-//import {sendEmail} from '@utils/email';
+import {sendEmail} from '@utils/email';
 import {verifyRecaptcha} from '@utils/recaptcha';
 
 type SubmitContactFormReq = {
@@ -35,7 +30,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
     event,
     (
       request: SubmitContactFormReq,
-      callback: (response: ClientResponse) => void
+      callback: (response: Response) => void
     ): void => {
       logger.info({request: request}, event);
       const requestSchema = joi.object({
@@ -87,12 +82,14 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
       const {value: validatedValue, error: validationError} =
         requestSchema.validate(request);
       if (validationError) {
-        const response: ClientResponse = createErrorResponse({
-          code: validationError.message.split('|')[0],
-          message: validationError.message.split('|')[1]
-        });
-        logger.warn({response: response}, `${event} failed`);
-        return callback(response);
+        return callback(
+          createResponse({
+            event: event,
+            logger: logger,
+            code: validationError.message.split('|')[0],
+            message: validationError.message.split('|')[1]
+          })
+        );
       }
       let data = validatedValue as SubmitContactFormReq;
       data = {
@@ -116,21 +113,25 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
       })
         .then((score): void => {
           if (Number(score) <= 0.5) {
-            const response: ClientResponse = createErrorResponse({
-              code: '40304',
-              message: 'access denied for bot form submission.'
-            });
-            logger.warn({response: response}, `${event} failed`);
-            return callback(response);
+            return callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: '40304',
+                message: 'access denied for bot form submission.'
+              })
+            );
           }
           const userAgent = socket.handshake.headers['user-agent'];
           if (!userAgent) {
-            const response: ClientResponse = createErrorResponse({
-              code: '400',
-              message: 'user agent header is required.'
-            });
-            logger.warn({response: response}, `${event} failed`);
-            return callback(response);
+            return callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: '400',
+                message: 'user agent header is required.'
+              })
+            );
           }
           database
             .getConnection()
@@ -140,115 +141,110 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                   'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(created_at) = CURDATE()',
                   {submitter: btoa(userAgent)}
                 )
-                .then((rowDataPacket) => {
-                  const results = rowDataPacket[0] as RowDataPacket[];
+                .then((rowDataPacket): void => {
+                  const rows = rowDataPacket[0] as RowDataPacket[];
+                  if (rows.length === 5) {
+                    return callback(
+                      createResponse({
+                        event: event,
+                        logger: logger,
+                        code: '429',
+                        message: 'too many requests.'
+                      })
+                    );
+                  }
+                  sendEmail({
+                    name: data.name,
+                    email: data.email,
+                    message: data.message
+                  })
+                    .then((): void => {
+                      connection
+                        .execute(
+                          'INSERT INTO main_contact_submissions (submitter, created_at, updated_at) VALUES (:submitter, :created_at, :updated_at)',
+                          {
+                            submitter: btoa(userAgent),
+                            created_at: DateTime.utc().toFormat(
+                              'yyyy-LL-dd HH:mm:ss'
+                            ),
+                            updated_at: DateTime.utc().toFormat(
+                              'yyyy-LL-dd HH:mm:ss'
+                            )
+                          }
+                        )
+                        .then((): void =>
+                          callback(
+                            createResponse({
+                              event: event,
+                              logger: logger
+                            })
+                          )
+                        )
+                        .catch((queryError: QueryError): void =>
+                          callback(
+                            createResponse({
+                              event: event,
+                              logger: logger,
+                              code: '500',
+                              message:
+                                'an error occured while executing the query.',
+                              detail: queryError.message
+                            })
+                          )
+                        );
+                    })
+                    .catch((mailjetError: Error): void =>
+                      callback(
+                        createResponse({
+                          event: event,
+                          logger: logger,
+                          code: '503',
+                          message: 'an error occured while sending the email.',
+                          detail: mailjetError.message
+                        })
+                      )
+                    );
+                  return undefined;
                 })
-                .catch((queryError: QueryError): void => {
-                  const response: ClientResponse = createErrorResponse({
-                    code: '500',
-                    message: 'an error occured while executing the query.'
-                  });
-                  logger.warn(
-                    {response: response, error: queryError.message},
-                    `${event} failed`
-                  );
-                  return callback(obfuscateResponse(response));
-                })
+                .catch((queryError: QueryError): void =>
+                  callback(
+                    createResponse({
+                      event: event,
+                      logger: logger,
+                      code: '500',
+                      message: 'an error occured while executing the query.',
+                      detail: queryError.message
+                    })
+                  )
+                )
                 .finally((): void => {
                   connection.release();
                 });
             })
-            .catch((connectionError: NodeJS.ErrnoException): void => {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'an error occured while connecting to database.'
-              });
-              logger.warn(
-                {response: response, error: connectionError.message},
-                `${event} failed`
-              );
-              return callback(obfuscateResponse(response));
-            });
-          // storage.then((): void => {
-          //   getItem('main contact form submissions')
-          //     .then((submissions: Submission[] | undefined): void => {
-          //       const todaySubmissions = submissions?.filter(
-          //         (submission): boolean =>
-          //           submission.submitter === btoa(userAgent) &&
-          //           DateTime.fromISO(submission.timestamp).toISODate() ===
-          //             DateTime.utc().toLocal().toISODate()
-          //       );
-          //       if (todaySubmissions && todaySubmissions.length === 5) {
-          //         const response: ClientResponse = createErrorResponse({
-          //           code: '429',
-          //           message: 'too many requests.'
-          //         });
-          //         logger.warn({response: response}, `${event} failed`);
-          //         return callback(response);
-          //       }
-          //       sendEmail({
-          //         name: data.name,
-          //         email: data.email,
-          //         message: data.message
-          //       })
-          //         .then((): void => {
-          //           const newSubmission: Submission = {
-          //             submitter: btoa(userAgent),
-          //             timestamp:
-          //               DateTime.utc().toISO() ??
-          //               new Date(Date.now()).toISOString()
-          //           };
-          //           setItem(
-          //             'main contact form submissions',
-          //             [...(submissions ?? []), newSubmission],
-          //             {ttl: 2 * 24 * 60 * 60 * 1000}
-          //           ).then((): void => {
-          //             const response: ClientResponse = createSuccessResponse(
-          //               {}
-          //             );
-          //             logger.info({response: response}, `${event} success`);
-          //             return callback(response);
-          //           });
-          //         })
-          //         .catch((mailjetError: Error): void => {
-          //           const response: ClientResponse = createErrorResponse({
-          //             code: '503',
-          //             message: 'an error occured while sending the email.'
-          //           });
-          //           logger.warn(
-          //             {response: response, error: mailjetError.message},
-          //             `${event} failed`
-          //           );
-          //           return callback(obfuscateResponse(response));
-          //         });
-          //       return undefined;
-          //     })
-          //     .catch((storageError: Error): void => {
-          //       removeItem('main contact form submissions');
-          //       const response: ClientResponse = createErrorResponse({
-          //         code: '500',
-          //         message: 'an error occured while accessing the storage file.'
-          //       });
-          //       logger.warn(
-          //         {response: response, error: storageError.message},
-          //         `${event} failed`
-          //       );
-          //       return callback(obfuscateResponse(response));
-          //     });
-          // });
+            .catch((connectionError: NodeJS.ErrnoException): void =>
+              callback(
+                createResponse({
+                  event: event,
+                  logger: logger,
+                  code: '500',
+                  message: 'an error occured while connecting to database.',
+                  detail: connectionError.message
+                })
+              )
+            );
           return undefined;
         })
-        .catch((captchaError: Error): void => {
-          const response: ClientResponse = createErrorResponse({
-            code: '503',
-            message: 'an error occured while verifying captcha.'
-          });
-          logger.warn(
-            {response: response, error: captchaError.message},
-            `${event} failed`
-          );
-          return callback(obfuscateResponse(response));
-        });
+        .catch((captchaError: Error): void =>
+          callback(
+            createResponse({
+              event: event,
+              logger: logger,
+              code: '503',
+              message: 'an error occured while verifying captcha.',
+              detail: captchaError.message
+            })
+          )
+        );
       return undefined;
     }
   );

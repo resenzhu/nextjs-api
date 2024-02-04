@@ -1,8 +1,4 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse
-} from '@utils/response';
+import {type Response, createResponse} from '@utils/response';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import joi from 'joi';
@@ -22,7 +18,7 @@ const askChatbotEvent = (
     event,
     async (
       request: AskChatbotReq,
-      callback: (response: ClientResponse) => void
+      callback: (response: Response) => void
     ): Promise<void> => {
       logger.info({request: request}, event);
       const requestSchema = joi.object({
@@ -37,12 +33,14 @@ const askChatbotEvent = (
       const {value: validatedValue, error: validationError} =
         requestSchema.validate(request);
       if (validationError) {
-        const response: ClientResponse = createErrorResponse({
-          code: validationError.message.split('|')[0],
-          message: validationError.message.split('|')[1]
-        });
-        logger.warn({response: response}, `${event} failed`);
-        return callback(response);
+        return callback(
+          createResponse({
+            event: event,
+            logger: logger,
+            code: validationError.message.split('|')[0],
+            message: validationError.message.split('|')[1]
+          })
+        );
       }
       let data = validatedValue as AskChatbotReq;
       data = {
@@ -50,13 +48,15 @@ const askChatbotEvent = (
         input: sanitize(data.input).trim()
       };
       const reply = await chatbot.process(data.input);
-      const response: ClientResponse = createSuccessResponse({
-        data: {
-          reply: reply.answer
-        }
-      });
-      logger.info({response: response}, `${event} success`);
-      return callback(response);
+      return callback(
+        createResponse({
+          event: event,
+          logger: logger,
+          data: {
+            reply: reply.answer
+          }
+        })
+      );
     }
   );
 };
