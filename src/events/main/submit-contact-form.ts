@@ -1,7 +1,7 @@
-import type {QueryError, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
+import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import joi from 'joi';
@@ -159,13 +159,13 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     .then((): void => {
                       connection
                         .execute(
-                          'INSERT INTO main_contact_submissions (submitter, created_at, updated_at) VALUES (:submitter, :created_at, :updated_at)',
+                          'INSERT INTO main_contact_submissions (submitter, created_at, updated_at) VALUES (:submitter, :createdAt, :updatedAt)',
                           {
                             submitter: btoa(userAgent),
-                            created_at: DateTime.utc().toFormat(
+                            createdAt: DateTime.utc().toFormat(
                               'yyyy-MM-dd HH:mm:ss'
                             ),
-                            updated_at: DateTime.utc().toFormat(
+                            updatedAt: DateTime.utc().toFormat(
                               'yyyy-MM-dd HH:mm:ss'
                             )
                           }
@@ -175,18 +175,6 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                             createResponse({
                               event: event,
                               logger: logger
-                            })
-                          )
-                        )
-                        .catch((queryError: QueryError): void =>
-                          callback(
-                            createResponse({
-                              event: event,
-                              logger: logger,
-                              code: '500',
-                              message:
-                                'an error occured while executing the query.',
-                              detail: queryError.message
                             })
                           )
                         );
@@ -204,17 +192,6 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     );
                   return undefined;
                 })
-                .catch((queryError: QueryError): void =>
-                  callback(
-                    createResponse({
-                      event: event,
-                      logger: logger,
-                      code: '500',
-                      message: 'an error occured while executing the query.',
-                      detail: queryError.message
-                    })
-                  )
-                )
                 .finally((): void => {
                   connection.release();
                 });
