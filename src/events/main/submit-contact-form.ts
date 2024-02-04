@@ -160,10 +160,10 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                           {
                             submitter: btoa(userAgent),
                             created_at: DateTime.utc().toFormat(
-                              'yyyy-LL-dd HH:mm:ss'
+                              'yyyy-MM-dd HH:mm:ss'
                             ),
                             updated_at: DateTime.utc().toFormat(
-                              'yyyy-LL-dd HH:mm:ss'
+                              'yyyy-MM-dd HH:mm:ss'
                             )
                           }
                         )
