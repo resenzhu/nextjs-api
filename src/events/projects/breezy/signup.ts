@@ -196,7 +196,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                           sessionId: newUser.session.id,
                           socketId: newUser.session.socket,
                           status: newUser.session.status,
-                          lastOnline: newUser.session.lastOnline,
+                          lastOnline: DateTime.fromISO(
+                            newUser.session.lastOnline
+                          ).toFormat('yyyy-MM-dd HH:mm:ss'),
                           createdTime: DateTime.fromISO(
                             newUser.joinDate
                           ).toFormat('yyyy-MM-dd HH:mm:ss'),
