@@ -6,13 +6,13 @@ import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import {hash} from 'bcrypt';
 import joi from 'joi';
-// import {nanoid} from 'nanoid';
+import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
-// import {sign} from 'jsonwebtoken';
+import {sign} from 'jsonwebtoken';
 import {verifyRecaptcha} from '@utils/recaptcha';
 
 type SignUpReq = {
-  username: string;
+  userName: string;
   displayName: string;
   password: string;
   honeypot: string;
@@ -21,7 +21,7 @@ type SignUpReq = {
 
 type User = {
   id: string;
-  username: string;
+  userName: string;
   displayName: string;
   password: string;
   joinDate: string;
@@ -36,7 +36,7 @@ type User = {
 type NewUserNotif = {
   user: {
     id: string;
-    username: string;
+    userName: string;
     displayName: string;
     session: {
       status: 'online' | 'away' | 'offline';
@@ -58,22 +58,22 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
     (request: SignUpReq, callback: (response: Response) => void): void => {
       logger.info({request: request}, event);
       const requestSchema = joi.object({
-        username: joi
+        userName: joi
           .string()
           .min(2)
           .max(15)
           .pattern(/^[a-zA-Z0-9_-]+$/u)
           .required()
           .messages({
-            'string.base': "4220101|'username' must be a string.",
-            'string.empty': "4220102|'username' must not be empty.",
+            'string.base': "4220101|'userName' must be a string.",
+            'string.empty': "4220102|'userName' must not be empty.",
             'string.min':
-              "4220103|'username' must be between 2 and 15 characters.",
+              "4220103|'userName' must be between 2 and 15 characters.",
             'string.max':
-              "4220104|'username' must be between 2 and 15 characters.",
+              "4220104|'userName' must be between 2 and 15 characters.",
             'string.pattern.base':
-              "4220105|'username' must only contain letters, numbers, hyphen, and underscore.",
-            'any.required': "40001|'username' is required."
+              "4220105|'userName' must only contain letters, numbers, hyphen, and underscore.",
+            'any.required': "40001|'userName' is required."
           }),
         displayName: joi
           .string()
@@ -127,7 +127,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
       let data = validatedValue as SignUpReq;
       data = {
         ...data,
-        username: sanitize(data.username).trim().toLowerCase(),
+        userName: sanitize(data.userName).trim().toLowerCase(),
         displayName: sanitize(data.displayName).trim(),
         honeypot: sanitize(data.honeypot).trim(),
         recaptcha: sanitize(data.recaptcha).trim()
@@ -152,9 +152,9 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             .then((connection): void => {
               connection
                 .execute(
-                  'SELECT DISTINCT user_id FROM breezy_users WHERE user_name = :userName AND TIMESTAMPDIFF(DAY, DATE(created_at), :currentDate) <= 14',
+                  'SELECT DISTINCT userid FROM breezy_users WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(createdtime), :currentDate) <= 14',
                   {
-                    userName: data.username,
+                    userName: data.userName,
                     currentDate: DateTime.utc().toISODate()
                   }
                 )
@@ -170,7 +170,78 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                       })
                     );
                   }
-                  hash(data.password, 10).then((hashedPassword): void => {});
+                  hash(data.password, 10).then((hashedPassword): void => {
+                    const timestamp = DateTime.utc().toISO();
+                    const newUser: User = {
+                      id: nanoid(),
+                      userName: data.userName,
+                      displayName: data.displayName,
+                      password: hashedPassword,
+                      joinDate: timestamp,
+                      session: {
+                        id: nanoid(),
+                        socket: socket.id,
+                        status: 'online',
+                        lastOnline: timestamp
+                      }
+                    };
+                    connection
+                      .execute(
+                        'INSERT INTO breezy_users (userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime, updatedtime) VALUES (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :lastOnline, :createdTime, :updatedTime)',
+                        {
+                          userId: newUser.id,
+                          userName: newUser.userName,
+                          displayName: newUser.displayName,
+                          password: newUser.password,
+                          sessionId: newUser.session.id,
+                          socketId: newUser.session.socket,
+                          status: newUser.session.status,
+                          lastOnline: newUser.session.lastOnline,
+                          createdTime: DateTime.fromISO(
+                            newUser.joinDate
+                          ).toFormat('yyyy-MM-dd HH:mm:ss'),
+                          updatedTime: DateTime.fromISO(
+                            newUser.joinDate
+                          ).toFormat('yyyy-MM-dd HH:mm:ss')
+                        }
+                      )
+                      .then((): void => {
+                        const newUserNotif: NewUserNotif = {
+                          user: {
+                            id: newUser.id,
+                            userName: newUser.userName,
+                            displayName: newUser.displayName,
+                            session: {
+                              status: newUser.session.status
+                                .replace('appear', '')
+                                .trim() as 'online' | 'away' | 'offline',
+                              lastOnline: newUser.session.lastOnline
+                            }
+                          }
+                        };
+                        socket.broadcast.emit('add new user', newUserNotif);
+                        return callback(
+                          createResponse({
+                            event: event,
+                            logger: logger,
+                            data: {
+                              token: sign(
+                                {id: newUser.id, session: newUser.session.id},
+                                Buffer.from(
+                                  process.env.JWT_KEY_PRIVATE_BASE64,
+                                  'base64'
+                                ).toString(),
+                                {
+                                  algorithm: 'RS256',
+                                  issuer: 'resen',
+                                  subject: newUser.userName
+                                }
+                              )
+                            }
+                          })
+                        );
+                      });
+                  });
                 })
                 .finally((): void => {
                   connection.release();
@@ -187,114 +258,6 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                 })
               )
             );
-          // storage.then((): void => {
-          //   getItem('breezy users')
-          //     .then((users: User[] | undefined): void => {
-          //       const account = users?.find(
-          //         (user): boolean =>
-          //           user.username === data.username &&
-          //           DateTime.utc()
-          //             .endOf('day')
-          //             .diff(
-          //               DateTime.fromISO(user.session.lastOnline)
-          //                 .toUTC()
-          //                 .startOf('day'),
-          //               ['weeks']
-          //             ).weeks <= 1
-          //       );
-          //       if (account) {
-          //         const response: ClientResponse = createErrorResponse({
-          //           code: '40901',
-          //           message: 'username already exists.'
-          //         });
-          //         logger.warn({response: response}, `${event} failed`);
-          //         return callback(response);
-          //       }
-          //       hash(data.password, 10).then((hashedPassword): void => {
-          //         const timestamp =
-          //           DateTime.utc().toISO() ?? new Date().toISOString();
-          //         const newUser: User = {
-          //           id: nanoid(),
-          //           username: data.username,
-          //           displayName: data.displayName,
-          //           password: hashedPassword,
-          //           joinDate: timestamp,
-          //           session: {
-          //             id: nanoid(),
-          //             socket: socket.id,
-          //             status: 'online',
-          //             lastOnline: timestamp
-          //           }
-          //         };
-          //         const updatedUsers = [
-          //           ...(users?.filter(
-          //             (user): boolean => user.username !== newUser.username
-          //           ) ?? []),
-          //           newUser
-          //         ];
-          //         const ttl = DateTime.max(
-          //           ...updatedUsers.map(
-          //             (user): DateTime =>
-          //               DateTime.fromISO(user.session.lastOnline, {
-          //                 zone: 'utc'
-          //               })
-          //           )
-          //         )
-          //           .plus({weeks: 1})
-          //           .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-          //         setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-          //           (): void => {
-          //             const newUserNotif: NewUserNotif = {
-          //               user: {
-          //                 id: newUser.id,
-          //                 username: newUser.username,
-          //                 displayName: newUser.displayName,
-          //                 session: {
-          //                   status: newUser.session.status
-          //                     .replace('appear', '')
-          //                     .trim() as 'online' | 'away' | 'offline',
-          //                   lastOnline: newUser.session.lastOnline
-          //                 }
-          //               }
-          //             };
-          //             socket.broadcast.emit('add new user', newUserNotif);
-          //             const response: ClientResponse = createSuccessResponse({
-          //               data: {
-          //                 token: sign(
-          //                   {id: newUser.id, session: newUser.session.id},
-          //                   Buffer.from(
-          //                     process.env.JWT_KEY_PRIVATE_BASE64,
-          //                     'base64'
-          //                   ).toString(),
-          //                   {
-          //                     algorithm: 'RS256',
-          //                     issuer: 'resen',
-          //                     subject: newUser.username
-          //                   }
-          //                 )
-          //               }
-          //             });
-          //             logger.info({response: response}, `${event} success`);
-          //             return callback(response);
-          //           }
-          //         );
-          //       });
-          //       return undefined;
-          //     })
-          //     .catch((storageError: Error): void => {
-          //       removeItem('breezy users');
-          //       socket.broadcast.emit('force logout');
-          //       const response: ClientResponse = createErrorResponse({
-          //         code: '500',
-          //         message: 'an error occured while accessing the storage file.'
-          //       });
-          //       logger.warn(
-          //         {response: response, error: storageError.message},
-          //         `${event} failed`
-          //       );
-          //       return callback(obfuscateResponse(response));
-          //     });
-          // });
           return undefined;
         })
         .catch((captchaError: Error): void =>
