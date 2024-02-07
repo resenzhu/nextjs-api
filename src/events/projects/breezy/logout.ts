@@ -30,8 +30,7 @@ const logoutEvent = (socket: Socket, logger: Logger): void => {
                     ...user.session,
                     socket: null,
                     status: 'offline',
-                    lastOnline:
-                      DateTime.utc().toISO() ?? new Date().toISOString()
+                    lastOnline: DateTime.utc().toISO()
                   }
                 };
                 offlineUser = updatedUser;

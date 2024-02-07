@@ -52,8 +52,7 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                     session: {
                       ...user.session,
                       socket: socket.id,
-                      lastOnline:
-                        DateTime.utc().toISO() ?? new Date().toISOString()
+                      lastOnline: DateTime.utc().toISO()
                     }
                   };
                   onlineUser = updatedUser;

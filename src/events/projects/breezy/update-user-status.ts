@@ -61,8 +61,7 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
           storage.then((): void => {
             getItem('breezy users').then((users: User[]): void => {
               let changedUser: User | null = null;
-              let timestamp =
-                DateTime.utc().toISO() ?? new Date().toISOString();
+              let timestamp = DateTime.utc().toISO();
               const updatedUsers = users.map((user): User => {
                 if (user.id === verifiedJwt.id) {
                   const updatedUser: User = {

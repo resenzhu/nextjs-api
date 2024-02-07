@@ -143,8 +143,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                     let persistentStatus: typeof account.session.status =
                       'online';
                     const newSessionId = nanoid();
-                    const timestamp =
-                      DateTime.utc().toISO() ?? new Date().toISOString();
+                    const timestamp = DateTime.utc().toISO();
                     const updatedUsers = users.map((user): User => {
                       if (user.id === account.id) {
                         oldSocket = user.session.socket;

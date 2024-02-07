@@ -20,8 +20,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
                   session: {
                     ...user.session,
                     socket: null,
-                    lastOnline:
-                      DateTime.utc().toISO() ?? new Date().toISOString()
+                    lastOnline: DateTime.utc().toISO()
                   }
                 };
                 offlineUser = updatedUser;
