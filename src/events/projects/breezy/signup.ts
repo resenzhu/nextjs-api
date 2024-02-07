@@ -152,7 +152,8 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             .then((connection): void => {
               connection
                 .execute(
-                  'SELECT DISTINCT userid FROM breezy_users WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(createdtime), :currentDate) <= 14',
+                  `SELECT DISTINCT userid FROM breezy_users
+                   WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(createdtime), :currentDate) <= 14`,
                   {
                     userName: data.userName,
                     currentDate: DateTime.utc().toISODate()
@@ -187,7 +188,8 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                     };
                     connection
                       .execute(
-                        'INSERT INTO breezy_users (userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime, updatedtime) VALUES (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :lastOnline, :createdTime, :updatedTime)',
+                        `INSERT INTO breezy_users (userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime, updatedtime) VALUES
+                         (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :lastOnline, :createdTime, :updatedTime)`,
                         {
                           userId: newUser.id,
                           userName: newUser.userName,
