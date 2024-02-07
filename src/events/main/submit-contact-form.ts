@@ -133,7 +133,7 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             .then((connection): void => {
               connection
                 .execute(
-                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(created_at) = :currentDate',
+                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(createdtime) = :currentDate',
                   {
                     submitter: btoa(userAgent),
                     currentDate: DateTime.utc().toISODate()
@@ -159,13 +159,13 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     .then((): void => {
                       connection
                         .execute(
-                          'INSERT INTO main_contact_submissions (submitter, created_at, updated_at) VALUES (:submitter, :createdAt, :updatedAt)',
+                          'INSERT INTO main_contact_submissions (submitter, createdtime, updatedtime) VALUES (:submitter, :createdTime, :updatedTime)',
                           {
                             submitter: btoa(userAgent),
-                            createdAt: DateTime.utc().toFormat(
+                            createdTime: DateTime.utc().toFormat(
                               'yyyy-MM-dd HH:mm:ss'
                             ),
-                            updatedAt: DateTime.utc().toFormat(
+                            updatedTime: DateTime.utc().toFormat(
                               'yyyy-MM-dd HH:mm:ss'
                             )
                           }
