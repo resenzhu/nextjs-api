@@ -256,6 +256,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                             );
                           });
                       });
+                      return undefined;
                     });
                 })
                 .finally((): void => {
