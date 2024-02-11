@@ -3,7 +3,7 @@ import {
   // disconnect,
   // fetchProfile,
   // fetchUsers,
-  // login,
+  login,
   // logout,
   signup
   // updateUserStatus
@@ -24,7 +24,7 @@ const breezyRouter = (server: Server): void => {
       }
       breezyLogger.info('socket connected');
       signup(socket, breezyLogger);
-      // login(socket, breezyLogger);
+      login(socket, breezyLogger);
       // fetchUsers(socket, breezyLogger, {namespace: breezy});
       // fetchProfile(socket, breezyLogger);
       // updateUserStatus(socket, breezyLogger);
