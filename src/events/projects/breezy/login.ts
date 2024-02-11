@@ -1,24 +1,19 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse,
-  obfuscateResponse
-} from '@utils/response';
-import {getItem, removeItem, setItem} from 'node-persist';
+import {type Response, createResponse} from '@utils/response';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
+import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy';
 import {compare} from 'bcrypt';
+import {database} from '@utils/database';
 import joi from 'joi';
 import {nanoid} from 'nanoid';
 import {sanitize} from 'isomorphic-dompurify';
 import {sign} from 'jsonwebtoken';
-import {storage} from '@utils/storage';
 import {verifyRecaptcha} from '@utils/recaptcha';
 
 type LoginReq = {
-  username: string;
+  userName: string;
   password: string;
   honeypot: string;
   recaptcha: string;
@@ -44,25 +39,25 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
   const event: string = 'login';
   socket.on(
     event,
-    (request: LoginReq, callback: (response: ClientResponse) => void): void => {
+    (request: LoginReq, callback: (response: Response) => void): void => {
       logger.info({request: request}, event);
       const requestSchema = joi.object({
-        username: joi
+        userName: joi
           .string()
           .min(2)
           .max(15)
           .pattern(/^[a-zA-Z0-9_-]+$/u)
           .required()
           .messages({
-            'string.base': "4220101|'username' must be a string.",
-            'string.empty': "4220102|'username' must not be empty.",
+            'string.base': "4220101|'userName' must be a string.",
+            'string.empty': "4220102|'userName' must not be empty.",
             'string.min':
-              "4220103|'username' must be between 2 and 15 characters.",
+              "4220103|'userName' must be between 2 and 15 characters.",
             'string.max':
-              "4220104|'username' must be between 2 and 15 characters.",
+              "4220104|'userName' must be between 2 and 15 characters.",
             'string.pattern.base':
-              "4220105|'username' must only contain letters, numbers, hyphen, and underscore.",
-            'any.required': "40001|'username' is required."
+              "4220105|'userName' must only contain letters, numbers, hyphen, and underscore.",
+            'any.required': "40001|'userName' is required."
           }),
         password: joi.string().min(8).max(64).required().messages({
           'string.base': "4220201|'password' must be a string.",
@@ -87,17 +82,19 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
       const {value: validatedValue, error: validationError} =
         requestSchema.validate(request);
       if (validationError) {
-        const response: ClientResponse = createErrorResponse({
-          code: validationError.message.split('|')[0],
-          message: validationError.message.split('|')[1]
-        });
-        logger.warn({response: response}, `${event} failed`);
-        return callback(response);
+        return callback(
+          createResponse({
+            event: event,
+            logger: logger,
+            code: validationError.message.split('|')[0],
+            message: validationError.message.split('|')[1]
+          })
+        );
       }
       let data = validatedValue as LoginReq;
       data = {
         ...data,
-        username: sanitize(data.username).trim().toLowerCase(),
+        userName: sanitize(data.userName).trim().toLowerCase(),
         honeypot: sanitize(data.honeypot).trim(),
         recaptcha: sanitize(data.recaptcha).trim()
       };
@@ -107,147 +104,174 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
       })
         .then((success): void => {
           if (!success) {
-            const response: ClientResponse = createErrorResponse({
-              code: '40303',
-              message: 'access denied for bot form submission.'
-            });
-            logger.warn({response: response}, `${event} failed`);
-            return callback(response);
+            return callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: '40303',
+                message: 'access denied for bot form submission.'
+              })
+            );
           }
-          storage.then((): void => {
-            getItem('breezy users')
-              .then((users: User[] | undefined): void => {
-                const account = users?.find(
-                  (user): boolean =>
-                    user.username === data.username &&
-                    DateTime.utc()
-                      .endOf('day')
-                      .diff(
-                        DateTime.fromISO(user.session.lastOnline)
-                          .toUTC()
-                          .startOf('day'),
-                        ['weeks']
-                      ).weeks <= 1
-                );
-                compare(data.password, account?.password ?? '').then(
-                  (correctPassword): void => {
-                    if (!users || !account || !correctPassword) {
-                      const response: ClientResponse = createErrorResponse({
-                        code: '401',
-                        message: 'username or password is invalid.'
-                      });
-                      logger.warn({response: response}, `${event} failed`);
-                      return callback(response);
-                    }
-                    let oldSocket: string | null = null;
-                    let persistentStatus: typeof account.session.status =
-                      'online';
-                    const newSessionId = nanoid();
-                    const timestamp = DateTime.utc().toISO();
-                    const updatedUsers = users.map((user): User => {
-                      if (user.id === account.id) {
-                        oldSocket = user.session.socket;
-                        const updatedUser: User = {
-                          ...user,
-                          session: {
-                            ...user.session,
-                            id: newSessionId,
-                            socket: socket.id,
-                            status:
-                              user.session.status === 'offline'
-                                ? persistentStatus
-                                : user.session.status,
-                            lastOnline: timestamp
-                          }
-                        };
-                        persistentStatus = updatedUser.session.status;
-                        return updatedUser;
+          database
+            .getConnection()
+            .then((connection): void => {
+              connection
+                .execute(
+                  `DELETE FROM breezy_users
+                   WHERE TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) > 14`,
+                  {currentDate: DateTime.utc().toISODate()}
+                )
+                .then((): void => {
+                  connection
+                    .execute(
+                      `SELECT DISTINCT userid FROM breezy_users
+                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14`,
+                      {
+                        userName: data.userName,
+                        currentDate: DateTime.utc().toISODate()
                       }
-                      return user;
-                    });
-                    const ttl = DateTime.max(
-                      ...updatedUsers.map(
-                        (user): DateTime =>
-                          DateTime.fromISO(user.session.lastOnline, {
-                            zone: 'utc'
-                          })
-                      )
                     )
-                      .plus({weeks: 1})
-                      .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-                    setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                      (): void => {
-                        if (oldSocket) {
-                          socket.broadcast
-                            .to(oldSocket)
-                            .emit('logout old session');
-                        }
-                        const userStatusNotif: UserStatusNotif = {
-                          user: {
-                            id: account.id,
-                            session: {
-                              status: persistentStatus
-                                .replace('appear', '')
-                                .trim() as 'online' | 'away' | 'offline',
-                              lastOnline: timestamp
-                            }
+                    .then((rowDataPacket): void => {
+                      const rows = rowDataPacket[0] as RowDataPacket[];
+                      const [account] = rows;
+                      compare(data.password, account?.password ?? '').then(
+                        (correctPassword): void => {
+                          if (!account || !correctPassword) {
+                            return callback(
+                              createResponse({
+                                event: event,
+                                logger: logger,
+                                code: '401',
+                                message: 'username or password is invalid.'
+                              })
+                            );
                           }
-                        };
-                        socket.broadcast.emit(
-                          'update user status',
-                          userStatusNotif
-                        );
-                        const response: ClientResponse = createSuccessResponse({
-                          data: {
-                            token: sign(
-                              {id: account.id, session: newSessionId},
-                              Buffer.from(
-                                process.env.JWT_KEY_PRIVATE_BASE64,
-                                'base64'
-                              ).toString(),
+                          const existingUser: User = {
+                            id: account.userid,
+                            userName: account.username,
+                            displayName: account.displayname,
+                            password: account.password,
+                            joinDate:
+                              DateTime.fromFormat(
+                                account.createdtime,
+                                'yyyy-MM-dd HH:mm:ss',
+                                {zone: 'utc'}
+                              ).toISO() ??
+                              `${account.createdtime.replace(' ', 'T')}.000Z`,
+                            session: {
+                              id: account.sessionid,
+                              socket: account.socketid,
+                              status: account.status,
+                              lastOnline:
+                                DateTime.fromFormat(
+                                  account.lastonline,
+                                  'yyyy-MM-dd HH:mm:ss',
+                                  {zone: 'utc'}
+                                ).toISO() ??
+                                `${account.createdtime.replace(' ', 'T')}.000Z`
+                            }
+                          };
+                          const newSessionId = nanoid();
+                          const newSocketId = socket.id;
+                          const newStatus =
+                            existingUser.session.status === 'offline'
+                              ? 'online'
+                              : existingUser.session.status;
+                          const timestamp = DateTime.utc().toISO();
+                          connection
+                            .execute(
+                              `UPDATE breezy_users
+                               SET sessionid = :sessionId, socketid = :socketId, status = :status, lastonline = :lastOnline
+                               WHERE userid = :userId`,
                               {
-                                algorithm: 'RS256',
-                                issuer: 'resen',
-                                subject: account.username
+                                sessionId: newSessionId,
+                                socketId: newSocketId,
+                                status: newStatus,
+                                lastOnline: DateTime.fromISO(
+                                  timestamp
+                                ).toFormat('yyyy-MM-dd HH:mm:ss'),
+                                userId: existingUser.id
                               }
                             )
-                          }
-                        });
-                        logger.info({response: response}, `${event} success`);
-                        return callback(response);
-                      }
-                    );
-                    return undefined;
-                  }
-                );
-              })
-              .catch((storageError: Error): void => {
-                removeItem('breezy users');
-                socket.broadcast.emit('force logout');
-                const response: ClientResponse = createErrorResponse({
-                  code: '500',
-                  message: 'an error occured while accessing the storage file.'
+                            .then((): void => {
+                              if (existingUser.session.socket) {
+                                socket.broadcast
+                                  .to(existingUser.session.socket)
+                                  .emit('logout old session');
+                              }
+                              const userStatusNotif: UserStatusNotif = {
+                                user: {
+                                  id: existingUser.id,
+                                  session: {
+                                    status: newStatus
+                                      .replace('appear', '')
+                                      .trim() as 'online' | 'away' | 'offline',
+                                    lastOnline: timestamp
+                                  }
+                                }
+                              };
+                              socket.broadcast.emit(
+                                'update user status',
+                                userStatusNotif
+                              );
+                              return callback(
+                                createResponse({
+                                  event: event,
+                                  logger: logger,
+                                  data: {
+                                    token: sign(
+                                      {
+                                        id: existingUser.id,
+                                        session: newSessionId
+                                      },
+                                      Buffer.from(
+                                        process.env.JWT_KEY_PRIVATE_BASE64,
+                                        'base64'
+                                      ).toString(),
+                                      {
+                                        algorithm: 'RS256',
+                                        issuer: 'resen',
+                                        subject: existingUser.userName
+                                      }
+                                    )
+                                  }
+                                })
+                              );
+                            });
+                          return undefined;
+                        }
+                      );
+                    });
+                })
+                .finally((): void => {
+                  connection.release();
                 });
-                logger.warn(
-                  {response: response, error: storageError.message},
-                  `${event} failed`
-                );
-                return callback(obfuscateResponse(response));
-              });
-          });
+            })
+            .catch((connectionError: NodeJS.ErrnoException): void =>
+              callback(
+                createResponse({
+                  event: event,
+                  logger: logger,
+                  code: '500',
+                  message: 'an error occured while connecting to database.',
+                  detail: connectionError.message
+                })
+              )
+            );
           return undefined;
         })
-        .catch((captchaError: Error): void => {
-          const response: ClientResponse = createErrorResponse({
-            code: '503',
-            message: 'an error occured while verifying captcha.'
-          });
-          logger.warn(
-            {response: response, error: captchaError.message},
-            `${event} failed`
-          );
-          return callback(obfuscateResponse(response));
-        });
+        .catch((captchaError: Error): void =>
+          callback(
+            createResponse({
+              event: event,
+              logger: logger,
+              code: '503',
+              message: 'an error occured while verifying captcha.',
+              detail: captchaError.message
+            })
+          )
+        );
       return undefined;
     }
   );
