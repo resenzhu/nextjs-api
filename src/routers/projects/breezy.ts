@@ -2,7 +2,7 @@ import {createRouterLogger, getRedaction} from '@utils/logger';
 import {
   // disconnect,
   // fetchProfile,
-  // fetchUsers,
+  fetchUsers,
   login,
   // logout,
   signup
@@ -25,7 +25,7 @@ const breezyRouter = (server: Server): void => {
       breezyLogger.info('socket connected');
       signup(socket, breezyLogger);
       login(socket, breezyLogger);
-      // fetchUsers(socket, breezyLogger, {namespace: breezy});
+      fetchUsers(socket, breezyLogger, {namespace: breezy});
       // fetchProfile(socket, breezyLogger);
       // updateUserStatus(socket, breezyLogger);
       // logout(socket, breezyLogger);

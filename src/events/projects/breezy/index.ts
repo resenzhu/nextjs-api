@@ -1,9 +1,6 @@
 // export {default as disconnect} from '@events/projects/breezy/disconnect';
 // export {default as fetchProfile} from '@events/projects/breezy/fetch-profile';
-// export {
-//   default as fetchUsers,
-//   type JWTPayload
-// } from '@events/projects/breezy/fetch-users';
+export {default as fetchUsers} from '@events/projects/breezy/fetch-users';
 export {
   default as login,
   type LoginReq,
