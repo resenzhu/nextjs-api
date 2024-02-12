@@ -160,15 +160,16 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                   connection
                     .execute(
                       `SELECT DISTINCT userid FROM breezy_users
-                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14`,
+                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
+                       LIMIT 1`,
                       {
                         userName: data.userName,
                         currentDate: DateTime.utc().toISODate()
                       }
                     )
-                    .then((rowDataPacket): void => {
-                      const rows = rowDataPacket[0] as RowDataPacket[];
-                      if (rows.length !== 0) {
+                    .then((packet): void => {
+                      const [userResult] = packet[0] as RowDataPacket[];
+                      if (userResult) {
                         return callback(
                           createResponse({
                             event: event,

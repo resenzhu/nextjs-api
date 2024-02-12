@@ -125,19 +125,19 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                 .then((): void => {
                   connection
                     .execute(
-                      `SELECT DISTINCT userid FROM breezy_users
-                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14`,
+                      `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
+                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
+                       LIMIT 1`,
                       {
                         userName: data.userName,
                         currentDate: DateTime.utc().toISODate()
                       }
                     )
-                    .then((rowDataPacket): void => {
-                      const rows = rowDataPacket[0] as RowDataPacket[];
-                      const [account] = rows;
-                      compare(data.password, account?.password ?? '').then(
+                    .then((packet): void => {
+                      const [userResult] = packet[0] as RowDataPacket[];
+                      compare(data.password, userResult?.password ?? '').then(
                         (correctPassword): void => {
-                          if (!account || !correctPassword) {
+                          if (!userResult || !correctPassword) {
                             return callback(
                               createResponse({
                                 event: event,
@@ -148,48 +148,54 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             );
                           }
                           const existingUser: User = {
-                            id: account.userid,
-                            userName: account.username,
-                            displayName: account.displayname,
-                            password: account.password,
+                            id: userResult.userid,
+                            userName: userResult.username,
+                            displayName: userResult.displayname,
+                            password: userResult.password,
                             joinDate:
                               DateTime.fromFormat(
-                                account.createdtime,
+                                userResult.createdtime,
                                 'yyyy-MM-dd HH:mm:ss',
                                 {zone: 'utc'}
                               ).toISO() ??
-                              `${account.createdtime.replace(' ', 'T')}.000Z`,
+                              `${userResult.createdtime.replace(' ', 'T')}.000Z`,
                             session: {
-                              id: account.sessionid,
-                              socket: account.socketid,
-                              status: account.status,
+                              id: userResult.sessionid,
+                              socket: userResult.socketid,
+                              status: userResult.status,
                               lastOnline:
                                 DateTime.fromFormat(
-                                  account.lastonline,
+                                  userResult.lastonline,
                                   'yyyy-MM-dd HH:mm:ss',
                                   {zone: 'utc'}
                                 ).toISO() ??
-                                `${account.createdtime.replace(' ', 'T')}.000Z`
+                                `${userResult.createdtime.replace(' ', 'T')}.000Z`
                             }
                           };
-                          const newSessionId = nanoid();
-                          const newSocketId = socket.id;
-                          const newStatus =
-                            existingUser.session.status === 'offline'
-                              ? 'online'
-                              : existingUser.session.status;
-                          const timestamp = DateTime.utc().toISO();
+                          const updatedUser: User = {
+                            ...existingUser,
+                            session: {
+                              ...existingUser.session,
+                              id: nanoid(),
+                              socket: socket.id,
+                              status:
+                                existingUser.session.status === 'offline'
+                                  ? 'online'
+                                  : existingUser.session.status,
+                              lastOnline: DateTime.utc().toISO()
+                            }
+                          };
                           connection
                             .execute(
                               `UPDATE breezy_users
                                SET sessionid = :sessionId, socketid = :socketId, status = :status, lastonline = :lastOnline
                                WHERE userid = :userId`,
                               {
-                                sessionId: newSessionId,
-                                socketId: newSocketId,
-                                status: newStatus,
+                                sessionId: updatedUser.session.id,
+                                socketId: updatedUser.session.socket,
+                                status: updatedUser.session.status,
                                 lastOnline: DateTime.fromISO(
-                                  timestamp
+                                  updatedUser.session.lastOnline
                                 ).toFormat('yyyy-MM-dd HH:mm:ss'),
                                 userId: existingUser.id
                               }
@@ -204,10 +210,10 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                 user: {
                                   id: existingUser.id,
                                   session: {
-                                    status: newStatus
+                                    status: updatedUser.session.status
                                       .replace('appear', '')
                                       .trim() as 'online' | 'away' | 'offline',
-                                    lastOnline: timestamp
+                                    lastOnline: updatedUser.session.lastOnline
                                   }
                                 }
                               };
@@ -223,7 +229,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                     token: sign(
                                       {
                                         id: existingUser.id,
-                                        session: newSessionId
+                                        session: updatedUser.session.id
                                       },
                                       Buffer.from(
                                         process.env.JWT_KEY_PRIVATE_BASE64,
