@@ -152,24 +152,12 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                             userName: userResult.username,
                             displayName: userResult.displayname,
                             password: userResult.password,
-                            joinDate:
-                              DateTime.fromFormat(
-                                userResult.createdtime,
-                                'yyyy-MM-dd HH:mm:ss',
-                                {zone: 'utc'}
-                              ).toISO() ??
-                              `${userResult.createdtime.replace(' ', 'T')}.000Z`,
+                            joinDate: userResult.createdtime,
                             session: {
                               id: userResult.sessionid,
                               socket: userResult.socketid,
                               status: userResult.status,
-                              lastOnline:
-                                DateTime.fromFormat(
-                                  userResult.lastonline,
-                                  'yyyy-MM-dd HH:mm:ss',
-                                  {zone: 'utc'}
-                                ).toISO() ??
-                                `${userResult.createdtime.replace(' ', 'T')}.000Z`
+                              lastOnline: userResult.lastonline
                             }
                           };
                           const updatedUser: User = {
