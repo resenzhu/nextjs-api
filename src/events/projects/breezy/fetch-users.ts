@@ -37,24 +37,12 @@ const fetchUsersEvent = (
                     userName: userResult.username,
                     displayName: userResult.displayname,
                     password: userResult.password,
-                    joinDate:
-                      DateTime.fromFormat(
-                        userResult.createdtime,
-                        'yyyy-MM-dd HH:mm:ss',
-                        {zone: 'utc'}
-                      ).toISO() ??
-                      `${userResult.createdtime.replace(' ', 'T')}.000Z`,
+                    joinDate: userResult.createdtime,
                     session: {
                       id: userResult.sessionid,
                       socket: userResult.socketid,
                       status: userResult.status,
-                      lastOnline:
-                        DateTime.fromFormat(
-                          userResult.lastonline,
-                          'yyyy-MM-dd HH:mm:ss',
-                          {zone: 'utc'}
-                        ).toISO() ??
-                        `${userResult.createdtime.replace(' ', 'T')}.000Z`
+                      lastOnline: userResult.lastonline
                     }
                   };
                   if (
@@ -75,9 +63,12 @@ const fetchUsersEvent = (
                     connection
                       .execute(
                         `UPDATE breezy_users
-                         SET socketid = NULL
+                         SET socketid = NULL, updatedtime = :updatedTime
                          WHERE userid = :userId`,
                         {
+                          updatedTime: DateTime.utc().toFormat(
+                            'yyyy-MM-dd HH:mm:ss'
+                          ),
                           userId: user.id
                         }
                       )
