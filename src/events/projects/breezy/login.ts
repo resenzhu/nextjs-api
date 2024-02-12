@@ -188,7 +188,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                           connection
                             .execute(
                               `UPDATE breezy_users
-                               SET sessionid = :sessionId, socketid = :socketId, status = :status, lastonline = :lastOnline
+                               SET sessionid = :sessionId, socketid = :socketId, status = :status, lastonline = :lastOnline, updatedtime = :updatedTime
                                WHERE userid = :userId`,
                               {
                                 sessionId: updatedUser.session.id,
@@ -197,6 +197,9 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                 lastOnline: DateTime.fromISO(
                                   updatedUser.session.lastOnline
                                 ).toFormat('yyyy-MM-dd HH:mm:ss'),
+                                updatedTime: DateTime.utc().toFormat(
+                                  'yyyy-MM-dd HH:mm:ss'
+                                ),
                                 userId: existingUser.id
                               }
                             )
