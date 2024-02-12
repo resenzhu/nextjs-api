@@ -9,7 +9,7 @@
     "url": "https://linkedin.com/in/resen"
   },
   "scripts": {
-    "upgrade": "ncu -u",
+    "upgrade": "ncu --interactive --format group",
     "prettier": "prettier --list-different --write . !dist",
     "lint": "eslint . --ext .ts",
     "client": "node -r ts-node/register -r tsconfig-paths/register src/client.ts",
