@@ -43,24 +43,12 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                   userName: userResult.username,
                   displayName: userResult.displayname,
                   password: userResult.password,
-                  joinDate:
-                    DateTime.fromFormat(
-                      userResult.createdtime,
-                      'yyyy-MM-dd HH:mm:ss',
-                      {zone: 'utc'}
-                    ).toISO() ??
-                    `${userResult.createdtime.replace(' ', 'T')}.000Z`,
+                  joinDate: userResult.createdtime,
                   session: {
                     id: userResult.sessionid,
                     socket: userResult.socketid,
                     status: userResult.status,
-                    lastOnline:
-                      DateTime.fromFormat(
-                        userResult.lastonline,
-                        'yyyy-MM-dd HH:mm:ss',
-                        {zone: 'utc'}
-                      ).toISO() ??
-                      `${userResult.createdtime.replace(' ', 'T')}.000Z`
+                    lastOnline: userResult.lastonline
                   }
                 };
                 const updatedUser: User = {
@@ -74,13 +62,16 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                 connection
                   .execute(
                     `UPDATE breezy_users
-                     SET socketid = :socketId, lastonline = :lastOnline
+                     SET socketid = :socketId, lastonline = :lastOnline, updatedtime = :updatedTime
                      WHERE userid = :userId`,
                     {
                       socketId: updatedUser.session.socket,
                       lastOnline: DateTime.fromISO(
                         updatedUser.session.lastOnline
                       ).toFormat('yyyy-MM-dd HH:mm:ss'),
+                      updatedTime: DateTime.utc().toFormat(
+                        'yyyy-MM-dd HH:mm:ss'
+                      ),
                       userId: existingUser.id
                     }
                   )
