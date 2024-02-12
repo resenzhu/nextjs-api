@@ -1,8 +1,8 @@
 import type {User, UserStatusNotif} from '@events/projects/breezy';
-import {getItem, removeItem, setItem} from 'node-persist';
 import {DateTime} from 'luxon';
+import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
-import {storage} from '@utils/storage';
+import {database} from '@utils/database';
 import {verify} from 'jsonwebtoken';
 
 export type JwtPayload = {
@@ -21,66 +21,78 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
         Buffer.from(process.env.JWT_KEY_PRIVATE_BASE64, 'base64').toString()
       );
       const jwtPayload = decoded as JwtPayload;
-      storage.then((): void => {
-        getItem('breezy users')
-          .then((users: User[] | undefined): void => {
-            if (users) {
-              const account = users.find(
-                (user): boolean =>
-                  user.id === jwtPayload.id &&
-                  user.session.id === jwtPayload.session &&
-                  DateTime.utc()
-                    .endOf('day')
-                    .diff(
-                      DateTime.fromISO(user.session.lastOnline)
-                        .toUTC()
-                        .startOf('day'),
-                      ['weeks']
-                    ).weeks <= 1
-              );
-              if (!account) {
-                reject(new Error('500|user was not found.'));
+      database
+        .getConnection()
+        .then((connection): void => {
+          connection
+            .execute(
+              `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
+               WHERE userid = :userId AND sessionid = :sessionId AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
+               LIMIT 1`,
+              {
+                userId: jwtPayload.id,
+                sessionId: jwtPayload.session,
+                currentDate: DateTime.utc().toISODate()
               }
-              let onlineUser: User | null = null;
-              const updatedUsers = users.map((user): User => {
-                if (
-                  user.id === jwtPayload.id &&
-                  user.session.id === jwtPayload.session
-                ) {
-                  const updatedUser: User = {
-                    ...user,
-                    session: {
-                      ...user.session,
-                      socket: socket.id,
-                      lastOnline: DateTime.utc().toISO()
+            )
+            .then((packet): void => {
+              const [userResult] = packet[0] as RowDataPacket[];
+              if (userResult) {
+                const existingUser: User = {
+                  id: userResult.userid,
+                  userName: userResult.username,
+                  displayName: userResult.displayname,
+                  password: userResult.password,
+                  joinDate:
+                    DateTime.fromFormat(
+                      userResult.createdtime,
+                      'yyyy-MM-dd HH:mm:ss',
+                      {zone: 'utc'}
+                    ).toISO() ??
+                    `${userResult.createdtime.replace(' ', 'T')}.000Z`,
+                  session: {
+                    id: userResult.sessionid,
+                    socket: userResult.socketid,
+                    status: userResult.status,
+                    lastOnline:
+                      DateTime.fromFormat(
+                        userResult.lastonline,
+                        'yyyy-MM-dd HH:mm:ss',
+                        {zone: 'utc'}
+                      ).toISO() ??
+                      `${userResult.createdtime.replace(' ', 'T')}.000Z`
+                  }
+                };
+                const updatedUser: User = {
+                  ...existingUser,
+                  session: {
+                    ...existingUser.session,
+                    socket: socket.id,
+                    lastOnline: DateTime.utc().toISO()
+                  }
+                };
+                connection
+                  .execute(
+                    `UPDATE breezy_users
+                     SET socketid = :socketId, lastonline = :lastOnline
+                     WHERE userid = :userId`,
+                    {
+                      socketId: updatedUser.session.socket,
+                      lastOnline: DateTime.fromISO(
+                        updatedUser.session.lastOnline
+                      ).toFormat('yyyy-MM-dd HH:mm:ss'),
+                      userId: existingUser.id
                     }
-                  };
-                  onlineUser = updatedUser;
-                  return updatedUser;
-                }
-                return user;
-              });
-              const ttl = DateTime.max(
-                ...updatedUsers.map(
-                  (user): DateTime =>
-                    DateTime.fromISO(user.session.lastOnline, {
-                      zone: 'utc'
-                    })
-                )
-              )
-                .plus({weeks: 1})
-                .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-              setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                (): void => {
-                  if (onlineUser) {
+                  )
+                  .then((): void => {
                     const userStatusNotif: UserStatusNotif = {
                       user: {
-                        id: onlineUser.id,
+                        id: existingUser.id,
                         session: {
-                          status: onlineUser.session.status
+                          status: updatedUser.session.status
                             .replace('appear', '')
                             .trim() as 'online' | 'away' | 'offline',
-                          lastOnline: onlineUser.session.lastOnline
+                          lastOnline: updatedUser.session.lastOnline
                         }
                       }
                     };
@@ -88,23 +100,23 @@ export const verifyJwt = (socket: Socket): Promise<JwtPayload | Error> =>
                       'update user status',
                       userStatusNotif
                     );
-                  }
-                  resolve(jwtPayload);
-                }
-              );
-            } else {
-              reject(new Error('500|user was not found.'));
-            }
-          })
-          .catch((storageError: Error): void => {
-            removeItem('breezy users');
-            reject(
-              new Error(
-                `500|an error occured while accessing the storage file.|${storageError.message}`
-              )
-            );
-          });
-      });
+                    resolve(jwtPayload);
+                  });
+              } else {
+                reject(new Error('404|user was not found.'));
+              }
+            })
+            .finally((): void => {
+              connection.release();
+            });
+        })
+        .catch((connectionError: NodeJS.ErrnoException): void => {
+          reject(
+            new Error(
+              `500|an error occured while connecting to database.|${connectionError.message}`
+            )
+          );
+        });
     } catch (jwtError) {
       reject(new Error(`401|token is missing or invalid.|${jwtError}`));
     }
