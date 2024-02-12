@@ -139,9 +139,9 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     currentDate: DateTime.utc().toISODate()
                   }
                 )
-                .then((rowDataPacket): void => {
-                  const rows = rowDataPacket[0] as RowDataPacket[];
-                  if (rows.length === 5) {
+                .then((packet): void => {
+                  const todaySubmissionsResult = packet[0] as RowDataPacket[];
+                  if (todaySubmissionsResult.length === 5) {
                     return callback(
                       createResponse({
                         event: event,
