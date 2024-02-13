@@ -105,31 +105,48 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
                           : existingUser.session.lastOnline
                     }
                   };
-                  const userStatusNotif: UserStatusNotif = {
-                    user: {
-                      id: existingUser.id,
-                      session: {
-                        status: updatedUser.session.status
-                          .replace('appear', '')
-                          .trim() as 'online' | 'away' | 'offline',
-                        lastOnline: updatedUser.session.lastOnline
+                  connection
+                    .execute(
+                      `UPDATE breezy_users
+                       SET status = :status, lastonline = :lastOnline, updatedtime = :updatedTime
+                       WHERE userid = :userId`,
+                      {
+                        status: updatedUser.session.status,
+                        lastonline: updatedUser.session.lastOnline,
+                        updatedTime: DateTime.utc().toISO(),
+                        userId: existingUser.id
                       }
-                    }
-                  };
-                  socket.broadcast.emit('update user status', userStatusNotif);
-                  return callback(
-                    createResponse({
-                      event: event,
-                      logger: logger,
-                      data: {
+                    )
+                    .then((): void => {
+                      const userStatusNotif: UserStatusNotif = {
                         user: {
+                          id: existingUser.id,
                           session: {
+                            status: updatedUser.session.status
+                              .replace('appear', '')
+                              .trim() as 'online' | 'away' | 'offline',
                             lastOnline: updatedUser.session.lastOnline
                           }
                         }
-                      }
-                    })
-                  );
+                      };
+                      socket.broadcast.emit(
+                        'update user status',
+                        userStatusNotif
+                      );
+                      return callback(
+                        createResponse({
+                          event: event,
+                          logger: logger,
+                          data: {
+                            user: {
+                              session: {
+                                lastOnline: updatedUser.session.lastOnline
+                              }
+                            }
+                          }
+                        })
+                      );
+                    });
                 })
                 .finally((): void => {
                   connection.release();
