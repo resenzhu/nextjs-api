@@ -1,18 +1,13 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse,
-  obfuscateResponse
-} from '@utils/response';
-import type {JWTPayload, User, UserStatusNotif} from '@events/projects/breezy';
-import {getItem, setItem} from 'node-persist';
+import {type JwtPayload, verifyJwt} from '@utils/breezy';
+import {type Response, createResponse} from '@utils/response';
+import type {User, UserStatusNotif} from '@events/projects/breezy';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
+import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
+import {database} from '@utils/database';
 import joi from 'joi';
 import {sanitize} from 'isomorphic-dompurify';
-import {storage} from '@utils/storage';
-import {verifyJwt} from '@utils/breezy';
 
 type UpdateUserStatusReq = {
   status: 'online' | 'appear away' | 'appear offline';
@@ -24,12 +19,12 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
     event,
     (
       request: UpdateUserStatusReq,
-      callback: (response: ClientResponse) => void
+      callback: (response: Response) => void
     ): void => {
       logger.info({request: request}, event);
       verifyJwt(socket)
         .then((jwtPayload): void => {
-          const verifiedJwt = jwtPayload as JWTPayload;
+          const verifiedJwt = jwtPayload as JwtPayload;
           const requestSchema = joi.object({
             status: joi
               .string()
@@ -46,103 +41,125 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
           const {value: validatedValue, error: validationError} =
             requestSchema.validate(request);
           if (validationError) {
-            const response: ClientResponse = createErrorResponse({
-              code: validationError.message.split('|')[0],
-              message: validationError.message.split('|')[1]
-            });
-            logger.warn({response: response}, `${event} failed`);
-            return callback(response);
+            return callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: validationError.message.split('|')[0],
+                message: validationError.message.split('|')[1]
+              })
+            );
           }
           let data = validatedValue as UpdateUserStatusReq;
           data = {
             ...data,
             status: sanitize(data.status).trim() as typeof data.status
           };
-          storage.then((): void => {
-            getItem('breezy users').then((users: User[]): void => {
-              let changedUser: User | null = null;
-              let timestamp = DateTime.utc().toISO();
-              const updatedUsers = users.map((user): User => {
-                if (user.id === verifiedJwt.id) {
-                  const updatedUser: User = {
-                    ...user,
+          database
+            .getConnection()
+            .then((connection): void => {
+              connection
+                .execute(
+                  `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
+                   WHERE userid = :userId AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
+                   LIMIT 1`,
+                  {
+                    userId: verifiedJwt.id,
+                    currentDate: DateTime.utc().toISODate()
+                  }
+                )
+                .then((packet): void => {
+                  const [userResult] = packet[0] as RowDataPacket[];
+                  if (!userResult) {
+                    return callback(
+                      createResponse({
+                        event: event,
+                        logger: logger,
+                        code: '404',
+                        message: 'user was not found.'
+                      })
+                    );
+                  }
+                  const existingUser: User = {
+                    id: userResult.userid,
+                    userName: userResult.username,
+                    displayName: userResult.displayname,
+                    password: userResult.password,
+                    joinDate: userResult.createdtime,
                     session: {
-                      ...user.session,
+                      id: userResult.sessionid,
+                      socket: userResult.socketid,
+                      status: userResult.status,
+                      lastOnline: userResult.lastonline
+                    }
+                  };
+                  const updatedUser: User = {
+                    ...existingUser,
+                    session: {
+                      ...existingUser.session,
                       status: data.status,
                       lastOnline:
                         data.status === 'online' ||
-                        user.session.status === 'online'
-                          ? timestamp
-                          : user.session.lastOnline
+                        existingUser.session.status === 'online'
+                          ? DateTime.utc().toISO()
+                          : existingUser.session.lastOnline
                     }
                   };
-                  changedUser = updatedUser;
-                  timestamp = updatedUser.session.lastOnline;
-                  return updatedUser;
-                }
-                return user;
-              });
-              const ttl = DateTime.max(
-                ...updatedUsers.map(
-                  (user): DateTime =>
-                    DateTime.fromISO(user.session.lastOnline, {
-                      zone: 'utc'
-                    })
-                )
-              )
-                .plus({weeks: 1})
-                .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-              setItem('breezy users', updatedUsers, {ttl: ttl}).then(
-                (): void => {
-                  if (changedUser) {
-                    const userStatusNotif: UserStatusNotif = {
-                      user: {
-                        id: changedUser.id,
-                        session: {
-                          status: changedUser.session.status
-                            .replace('appear', '')
-                            .trim() as 'online' | 'away' | 'offline',
-                          lastOnline: changedUser.session.lastOnline
-                        }
-                      }
-                    };
-                    socket.broadcast.emit(
-                      'update user status',
-                      userStatusNotif
-                    );
-                  }
-                  const response: ClientResponse = createSuccessResponse({
-                    data: {
-                      user: {
-                        session: {
-                          lastOnline: timestamp
-                        }
+                  const userStatusNotif: UserStatusNotif = {
+                    user: {
+                      id: existingUser.id,
+                      session: {
+                        status: updatedUser.session.status
+                          .replace('appear', '')
+                          .trim() as 'online' | 'away' | 'offline',
+                        lastOnline: updatedUser.session.lastOnline
                       }
                     }
-                  });
-                  logger.info({response: response}, `${event} success`);
-                  return callback(response);
-                }
-              );
-            });
-          });
+                  };
+                  socket.broadcast.emit('update user status', userStatusNotif);
+                  return callback(
+                    createResponse({
+                      event: event,
+                      logger: logger,
+                      data: {
+                        user: {
+                          session: {
+                            lastOnline: updatedUser.session.lastOnline
+                          }
+                        }
+                      }
+                    })
+                  );
+                })
+                .finally((): void => {
+                  connection.release();
+                });
+            })
+            .catch((connectionError: NodeJS.ErrnoException): void =>
+              callback(
+                createResponse({
+                  event: event,
+                  logger: logger,
+                  code: '500',
+                  message: 'an error occured while connecting to database.',
+                  detail: connectionError.message
+                })
+              )
+            );
           return undefined;
         })
-        .catch((jwtError): void => {
-          const response: ClientResponse = createErrorResponse({
-            code: jwtError.message.split('|')[0],
-            message: jwtError.message.split('|')[1]
-          });
-          logger.warn(
-            {
-              response: response,
-              error:
+        .catch((jwtError): void =>
+          callback(
+            createResponse({
+              event: event,
+              logger: logger,
+              code: jwtError.message.split('|')[0],
+              message: jwtError.message.split('|')[1],
+              detail:
                 jwtError.message.split('|')[2] ?? jwtError.message.split('|')[1]
-            },
-            `${event} failed`
-          );
-          return callback(obfuscateResponse(response));
-        });
+            })
+          )
+        );
     }
   );
 };

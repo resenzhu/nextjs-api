@@ -1,69 +1,103 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse,
-  obfuscateResponse
-} from '@utils/response';
-import type {JWTPayload, User} from '@events/projects/breezy';
+import {type JwtPayload, verifyJwt} from '@utils/breezy';
+import {type Response, createResponse} from '@utils/response';
+import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
+import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
-import {getItem} from 'node-persist';
-import {storage} from '@utils/storage';
-import {verifyJwt} from '@utils/breezy';
+import type {User} from '@events/projects/breezy';
+import {database} from '@utils/database';
 
 const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
   const event: string = 'fetch profile';
-  socket.on(event, (callback: (response: ClientResponse) => void): void => {
+  socket.on(event, (callback: (response: Response) => void): void => {
     logger.info(event);
     verifyJwt(socket)
       .then((jwtPayload): void => {
-        const verifiedJwt = jwtPayload as JWTPayload;
-        storage.then((): void => {
-          getItem('breezy users').then((users: User[]): void => {
-            const account = users.find(
-              (user): boolean => user.id === verifiedJwt.id
-            );
-            if (!account) {
-              const response: ClientResponse = createErrorResponse({
-                code: '500',
-                message: 'user was not found.'
-              });
-              logger.warn({response: response}, `${event} failed`);
-              return callback(response);
-            }
-            const response: ClientResponse = createSuccessResponse({
-              data: {
-                user: {
-                  id: account.id,
-                  username: account.username,
-                  displayName: account.displayName,
-                  session: {
-                    status: account.session.status,
-                    lastOnline: account.session.lastOnline
-                  }
+        const verifiedJwt = jwtPayload as JwtPayload;
+        database
+          .getConnection()
+          .then((connection): void => {
+            connection
+              .execute(
+                `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
+                 WHERE userid = :userId AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
+                 LIMIT 1`,
+                {
+                  userId: verifiedJwt.id,
+                  currentDate: DateTime.utc().toISODate()
                 }
-              }
-            });
-            logger.info({response: response}, `${event} success`);
-            return callback(response);
-          });
-        });
+              )
+              .then((packet): void => {
+                const [userResult] = packet[0] as RowDataPacket[];
+                if (!userResult) {
+                  return callback(
+                    createResponse({
+                      event: event,
+                      logger: logger,
+                      code: '404',
+                      message: 'user was not found.'
+                    })
+                  );
+                }
+                const existingUser: User = {
+                  id: userResult.userid,
+                  userName: userResult.username,
+                  displayName: userResult.displayname,
+                  password: userResult.password,
+                  joinDate: userResult.createdtime,
+                  session: {
+                    id: userResult.sessionid,
+                    socket: userResult.socketid,
+                    status: userResult.status,
+                    lastOnline: userResult.lastonline
+                  }
+                };
+                return callback(
+                  createResponse({
+                    event: event,
+                    logger: logger,
+                    data: {
+                      user: {
+                        id: existingUser.id,
+                        username: existingUser.userName,
+                        displayName: existingUser.displayName,
+                        session: {
+                          status: existingUser.session.status,
+                          lastOnline: existingUser.session.lastOnline
+                        }
+                      }
+                    }
+                  })
+                );
+              })
+              .finally((): void => {
+                connection.release();
+              });
+          })
+          .catch((connectionError: NodeJS.ErrnoException): void =>
+            callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: '500',
+                message: 'an error occured while connecting to database.',
+                detail: connectionError.message
+              })
+            )
+          );
       })
-      .catch((jwtError: Error): void => {
-        const response: ClientResponse = createErrorResponse({
-          code: jwtError.message.split('|')[0],
-          message: jwtError.message.split('|')[1]
-        });
-        logger.warn(
-          {
-            response: response,
-            error:
+      .catch((jwtError: Error): void =>
+        callback(
+          createResponse({
+            event: event,
+            logger: logger,
+            code: jwtError.message.split('|')[0],
+            message: jwtError.message.split('|')[1],
+            detail:
               jwtError.message.split('|')[2] ?? jwtError.message.split('|')[1]
-          },
-          `${event} failed`
-        );
-        return callback(obfuscateResponse(response));
-      });
+          })
+        )
+      );
   });
 };
 
