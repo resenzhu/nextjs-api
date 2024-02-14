@@ -11,5 +11,6 @@ export const database = mysql.createPool({
   password: process.env.MYSQL_PASSWORD,
   database: process.env.MYSQL_DATABASE,
   namedPlaceholders: true,
-  connectionLimit: 200
+  connectionLimit: 200,
+  timezone: '+00:00'
 });
