@@ -109,7 +109,7 @@
     "operator-assignment": "warn",
     "prefer-arrow-callback": "warn",
     "prefer-const": "warn",
-    "prefer-destructuring": "warn",
+    "prefer-destructuring": ["warn", {"array": false}],
     "prefer-exponentiation-operator": "warn",
     "prefer-numeric-literals": "warn",
     "prefer-object-has-own": "warn",
