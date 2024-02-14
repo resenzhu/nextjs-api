@@ -1,5 +1,4 @@
 import {type Response, createResponse} from '@utils/response';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
@@ -133,15 +132,12 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             .then((connection): void => {
               connection
                 .execute(
-                  'SELECT submitter FROM main_contact_submissions WHERE submitter = :submitter AND DATE(createdtime) = :currentDate',
-                  {
-                    submitter: btoa(userAgent),
-                    currentDate: DateTime.utc().toISODate()
-                  }
+                  'CALL SP_MAIN_GET_CONTACT_SUBMISSIONS_BY_SUBMITTER (:submitter)',
+                  {submitter: btoa(userAgent)}
                 )
                 .then((packet): void => {
-                  const todaySubmissionsResult = packet[0] as RowDataPacket[];
-                  if (todaySubmissionsResult.length === 5) {
+                  const [submissionsResult] = packet[0] as RowDataPacket[][];
+                  if (submissionsResult && submissionsResult.length === 5) {
                     return callback(
                       createResponse({
                         event: event,
@@ -159,16 +155,8 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                     .then((): void => {
                       connection
                         .execute(
-                          'INSERT INTO main_contact_submissions (submitter, createdtime, updatedtime) VALUES (:submitter, :createdTime, :updatedTime)',
-                          {
-                            submitter: btoa(userAgent),
-                            createdTime: DateTime.utc().toFormat(
-                              'yyyy-MM-dd HH:mm:ss'
-                            ),
-                            updatedTime: DateTime.utc().toFormat(
-                              'yyyy-MM-dd HH:mm:ss'
-                            )
-                          }
+                          'CALL SP_MAIN_ADD_CONTACT_SUBMISSION (:submitter)',
+                          {submitter: btoa(userAgent)}
                         )
                         .then((): void =>
                           callback(

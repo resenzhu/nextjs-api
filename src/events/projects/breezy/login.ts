@@ -1,7 +1,7 @@
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy';
 import {compare} from 'bcrypt';
@@ -117,24 +117,12 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
             .getConnection()
             .then((connection): void => {
               connection
-                .execute(
-                  `DELETE FROM breezy_users
-                   WHERE TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) > 14`,
-                  {currentDate: DateTime.utc().toISODate()}
-                )
+                .execute('CALL SP_BREEZY_PURGE_INACTIVE_USERS')
                 .then((): void => {
                   connection
-                    .execute(
-                      `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
-                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
-                       LIMIT 1`,
-                      {
-                        userName: data.userName,
-                        currentDate: DateTime.utc().toISODate()
-                      }
-                    )
+                    .execute('CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)', {userName: data.userName})
                     .then((packet): void => {
-                      const [userResult] = packet[0] as RowDataPacket[];
+                      const [userResult] = (packet[0] as ProcedureCallPacket<RowDataPacket[]>)[0];
                       compare(data.password, userResult?.password ?? '').then(
                         (correctPassword): void => {
                           if (!userResult || !correctPassword) {
@@ -166,11 +154,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               ...existingUser.session,
                               id: nanoid(),
                               socket: socket.id,
-                              status:
-                                existingUser.session.status === 'offline'
-                                  ? 'online'
-                                  : existingUser.session.status,
-                              lastOnline: DateTime.utc().toISO()
+                              status: existingUser.session.status === 'offline' ? 'online' : existingUser.session.status
                             }
                           };
                           connection

@@ -1,7 +1,6 @@
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import {hash} from 'bcrypt';
@@ -82,14 +81,14 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
           .pattern(/^[a-zA-Z\s]*$/u)
           .required()
           .messages({
-            'string.base': "4220101|'displayName' must be a string.",
-            'string.empty': "4220102|'displayName' must not be empty.",
+            'string.base': "4220201|'displayName' must be a string.",
+            'string.empty': "4220202|'displayName' must not be empty.",
             'string.min':
-              "4220103|'displayName' must be between 2 and 25 characters.",
+              "4220203|'displayName' must be between 2 and 25 characters.",
             'string.max':
-              "4220104|'displayName' must be between 2 and 25 characters.",
+              "4220204|'displayName' must be between 2 and 25 characters.",
             'string.pattern.base':
-              "4220105|'displayName' must only contain letters and spaces.",
+              "4220205|'displayName' must only contain letters and spaces.",
             'any.required': "40002|'displayName' is required."
           }),
         password: joi.string().min(8).max(64).required().messages({
@@ -151,25 +150,18 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
             .getConnection()
             .then((connection): void => {
               connection
-                .execute(
-                  `DELETE FROM breezy_users
-                   WHERE TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) > 14`,
-                  {currentDate: DateTime.utc().toISODate()}
-                )
+                .execute('CALL SP_BREEZY_PURGE_INACTIVE_USERS')
                 .then((): void => {
                   connection
                     .execute(
-                      `SELECT DISTINCT userid FROM breezy_users
-                       WHERE username = :userName AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
-                       LIMIT 1`,
-                      {
-                        userName: data.userName,
-                        currentDate: DateTime.utc().toISODate()
-                      }
+                      'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)',
+                      {userName: data.userName}
                     )
-                    .then((packet): void => {
-                      const [userResult] = packet[0] as RowDataPacket[];
-                      if (userResult) {
+                    .then((packet1): void => {
+                      const [userResult1] = (
+                        packet1[0] as ProcedureCallPacket<RowDataPacket[]>
+                      )[0];
+                      if (userResult1) {
                         return callback(
                           createResponse({
                             event: event,
@@ -180,81 +172,98 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                         );
                       }
                       hash(data.password, 10).then((hashedPassword): void => {
-                        const timestamp = DateTime.utc().toISO();
-                        const newUser: User = {
-                          id: nanoid(),
-                          userName: data.userName,
-                          displayName: data.displayName,
-                          password: hashedPassword,
-                          joinDate: timestamp,
-                          session: {
-                            id: nanoid(),
-                            socket: socket.id,
-                            status: 'online',
-                            lastOnline: timestamp
-                          }
-                        };
                         connection
                           .execute(
-                            `INSERT INTO breezy_users (userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime, updatedtime) VALUES
-                             (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :lastOnline, :createdTime, :updatedTime)`,
+                            'CALL SP_BREEZY_REGISTER_USER (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status)',
                             {
-                              userId: newUser.id,
-                              userName: newUser.userName,
-                              displayName: newUser.displayName,
-                              password: newUser.password,
-                              sessionId: newUser.session.id,
-                              socketId: newUser.session.socket,
-                              status: newUser.session.status,
-                              lastOnline: DateTime.fromISO(
-                                newUser.session.lastOnline
-                              ).toFormat('yyyy-MM-dd HH:mm:ss'),
-                              createdTime: DateTime.fromISO(
-                                newUser.joinDate
-                              ).toFormat('yyyy-MM-dd HH:mm:ss'),
-                              updatedTime: DateTime.fromISO(
-                                newUser.joinDate
-                              ).toFormat('yyyy-MM-dd HH:mm:ss')
+                              userId: nanoid(),
+                              userName: data.userName,
+                              displayName: data.displayName,
+                              password: hashedPassword,
+                              sessionId: nanoid(),
+                              socketId: socket.id,
+                              status: 'online'
                             }
                           )
                           .then((): void => {
-                            const newUserNotif: NewUserNotif = {
-                              user: {
-                                id: newUser.id,
-                                userName: newUser.userName,
-                                displayName: newUser.displayName,
-                                session: {
-                                  status: newUser.session.status
-                                    .replace('appear', '')
-                                    .trim() as 'online' | 'away' | 'offline',
-                                  lastOnline: newUser.session.lastOnline
+                            connection
+                              .execute(
+                                'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)',
+                                {userName: data.userName}
+                              )
+                              .then((packet2): void => {
+                                const [userResult2] = (
+                                  packet2[0] as ProcedureCallPacket<
+                                    RowDataPacket[]
+                                  >
+                                )[0];
+                                if (!userResult2) {
+                                  return callback(
+                                    createResponse({
+                                      event: event,
+                                      logger: logger,
+                                      code: '500',
+                                      message: 'user was not found.'
+                                    })
+                                  );
                                 }
-                              }
-                            };
-                            socket.broadcast.emit('add new user', newUserNotif);
-                            return callback(
-                              createResponse({
-                                event: event,
-                                logger: logger,
-                                data: {
-                                  token: sign(
-                                    {
-                                      id: newUser.id,
-                                      session: newUser.session.id
-                                    },
-                                    Buffer.from(
-                                      process.env.JWT_KEY_PRIVATE_BASE64,
-                                      'base64'
-                                    ).toString(),
-                                    {
-                                      algorithm: 'RS256',
-                                      issuer: 'resen',
-                                      subject: newUser.userName
+                                const newUser: User = {
+                                  id: userResult2.userid,
+                                  userName: userResult2.username,
+                                  displayName: userResult2.displayname,
+                                  password: userResult2.password,
+                                  joinDate: userResult2.createdtime,
+                                  session: {
+                                    id: userResult2.sessionid,
+                                    socket: userResult2.socketid,
+                                    status: userResult2.status,
+                                    lastOnline: userResult2.lastonline
+                                  }
+                                };
+                                const newUserNotif: NewUserNotif = {
+                                  user: {
+                                    id: newUser.id,
+                                    userName: newUser.userName,
+                                    displayName: newUser.displayName,
+                                    session: {
+                                      status: newUser.session.status
+                                        .replace('appear', '')
+                                        .trim() as
+                                        | 'online'
+                                        | 'away'
+                                        | 'offline',
+                                      lastOnline: newUser.session.lastOnline
                                     }
-                                  )
-                                }
-                              })
-                            );
+                                  }
+                                };
+                                socket.broadcast.emit(
+                                  'add new user',
+                                  newUserNotif
+                                );
+                                return callback(
+                                  createResponse({
+                                    event: event,
+                                    logger: logger,
+                                    data: {
+                                      token: sign(
+                                        {
+                                          id: newUser.id,
+                                          session: newUser.session.id
+                                        },
+                                        Buffer.from(
+                                          process.env.JWT_KEY_PRIVATE_BASE64,
+                                          'base64'
+                                        ).toString(),
+                                        {
+                                          algorithm: 'RS256',
+                                          issuer: 'resen',
+                                          subject: newUser.userName
+                                        }
+                                      )
+                                    }
+                                  })
+                                );
+                              });
                           });
                       });
                       return undefined;
