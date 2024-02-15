@@ -1,6 +1,6 @@
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import joi from 'joi';
@@ -136,8 +136,10 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
                   {submitter: btoa(userAgent)}
                 )
                 .then((packet): void => {
-                  const [submissionsResult] = packet[0] as RowDataPacket[][];
-                  if (submissionsResult && submissionsResult.length === 5) {
+                  const [submissionsResult] = packet[0] as ProcedureCallPacket<
+                    RowDataPacket[]
+                  >;
+                  if (submissionsResult.length === 5) {
                     return callback(
                       createResponse({
                         event: event,
