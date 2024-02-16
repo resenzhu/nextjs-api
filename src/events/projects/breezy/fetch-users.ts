@@ -1,10 +1,9 @@
 import {type JwtPayload, verifyJwt} from '@utils/breezy';
 import type {Namespace, Socket} from 'socket.io';
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import type {User, UserStatusNotif} from '@events/projects/breezy';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import {database} from '@utils/database';
 
 const fetchUsersEvent = (
@@ -22,17 +21,13 @@ const fetchUsersEvent = (
           .getConnection()
           .then((connection): void => {
             connection
-              .execute(
-                `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
-                 WHERE TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14`,
-                {
-                  currentDate: DateTime.utc().toISODate()
-                }
-              )
-              .then((packet): void => {
-                const usersResult = packet[0] as RowDataPacket[];
+              .execute('CALL SP_BREEZY_GET_ACTIVE_USERS')
+              .then((usersPacket): void => {
+                const [usersResult] = usersPacket[0] as ProcedureCallPacket<
+                  RowDataPacket[]
+                >;
                 const users: User[] = usersResult.map((userResult): User => {
-                  let user: User = {
+                  const existingUser: User = {
                     id: userResult.userid,
                     userName: userResult.username,
                     displayName: userResult.displayname,
@@ -50,45 +45,63 @@ const fetchUsersEvent = (
                       .map(([name, value]) => ({name: name, value: value}))
                       .some(
                         (connectedSocket): boolean =>
-                          connectedSocket.name === user.session.socket
+                          connectedSocket.name === existingUser.session.socket
                       )
                   ) {
-                    user = {
-                      ...user,
-                      session: {
-                        ...user.session,
-                        socket: null
-                      }
-                    };
                     connection
                       .execute(
-                        `UPDATE breezy_users
-                         SET socketid = NULL, updatedtime = :updatedTime
-                         WHERE userid = :userId`,
+                        'CALL SP_BREEZY_UPDATE_USER_SESSION (:userId, :sessionId, :socketId, :status)',
                         {
-                          updatedTime: DateTime.utc().toFormat(
-                            'yyyy-MM-dd HH:mm:ss'
-                          ),
-                          userId: user.id
+                          userId: existingUser.id,
+                          sessionId: existingUser.session.id,
+                          socketId: null,
+                          status: existingUser.session.status
                         }
                       )
                       .then((): void => {
-                        const userStatusNotif: UserStatusNotif = {
-                          user: {
-                            id: user.id,
-                            session: {
-                              status: 'offline',
-                              lastOnline: user.session.lastOnline
+                        connection
+                          .execute(
+                            'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)',
+                            {userId: existingUser.id}
+                          )
+                          .then((offlineUserPacket): void => {
+                            const [offlineUserResult] = (
+                              offlineUserPacket[0] as ProcedureCallPacket<
+                                RowDataPacket[]
+                              >
+                            )[0];
+                            if (offlineUserResult) {
+                              const offlineUser: User = {
+                                id: offlineUserResult.userid,
+                                userName: offlineUserResult.username,
+                                displayName: offlineUserResult.displayname,
+                                password: offlineUserResult.password,
+                                joinDate: offlineUserResult.createdtime,
+                                session: {
+                                  id: offlineUserResult.sessionid,
+                                  socket: offlineUserResult.socketid,
+                                  status: offlineUserResult.status,
+                                  lastOnline: offlineUserResult.lastonline
+                                }
+                              };
+                              const userStatusNotif: UserStatusNotif = {
+                                user: {
+                                  id: offlineUser.id,
+                                  session: {
+                                    status: 'offline',
+                                    lastOnline: offlineUser.session.lastOnline
+                                  }
+                                }
+                              };
+                              socket.broadcast.emit(
+                                'update user status',
+                                userStatusNotif
+                              );
                             }
-                          }
-                        };
-                        socket.broadcast.emit(
-                          'update user status',
-                          userStatusNotif
-                        );
+                          });
                       });
                   }
-                  return user;
+                  return existingUser;
                 });
                 return callback(
                   createResponse({

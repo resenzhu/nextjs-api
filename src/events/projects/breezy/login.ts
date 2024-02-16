@@ -1,6 +1,5 @@
 import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy';
@@ -120,9 +119,14 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                 .execute('CALL SP_BREEZY_PURGE_INACTIVE_USERS')
                 .then((): void => {
                   connection
-                    .execute('CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)', {userName: data.userName})
-                    .then((packet): void => {
-                      const [userResult] = (packet[0] as ProcedureCallPacket<RowDataPacket[]>)[0];
+                    .execute(
+                      'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)',
+                      {userName: data.userName}
+                    )
+                    .then((userPacket): void => {
+                      const [userResult] = (
+                        userPacket[0] as ProcedureCallPacket<RowDataPacket[]>
+                      )[0];
                       compare(data.password, userResult?.password ?? '').then(
                         (correctPassword): void => {
                           if (!userResult || !correctPassword) {
@@ -135,90 +139,103 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               })
                             );
                           }
-                          const existingUser: User = {
-                            id: userResult.userid,
-                            userName: userResult.username,
-                            displayName: userResult.displayname,
-                            password: userResult.password,
-                            joinDate: userResult.createdtime,
-                            session: {
-                              id: userResult.sessionid,
-                              socket: userResult.socketid,
-                              status: userResult.status,
-                              lastOnline: userResult.lastonline
-                            }
-                          };
-                          const updatedUser: User = {
-                            ...existingUser,
-                            session: {
-                              ...existingUser.session,
-                              id: nanoid(),
-                              socket: socket.id,
-                              status: existingUser.session.status === 'offline' ? 'online' : existingUser.session.status
-                            }
-                          };
                           connection
                             .execute(
-                              `UPDATE breezy_users
-                               SET sessionid = :sessionId, socketid = :socketId, status = :status, lastonline = :lastOnline, updatedtime = :updatedTime
-                               WHERE userid = :userId`,
+                              'CALL SP_BREEZY_UPDATE_USER_SESSION (:userId, :sessionId, :socketId, :status, :updateLastOnline)',
                               {
-                                sessionId: updatedUser.session.id,
-                                socketId: updatedUser.session.socket,
-                                status: updatedUser.session.status,
-                                lastOnline: DateTime.fromISO(
-                                  updatedUser.session.lastOnline
-                                ).toFormat('yyyy-MM-dd HH:mm:ss'),
-                                updatedTime: DateTime.utc().toFormat(
-                                  'yyyy-MM-dd HH:mm:ss'
-                                ),
-                                userId: existingUser.id
+                                userId: userResult.userid,
+                                sessionId: nanoid(),
+                                socketId: socket.id,
+                                status:
+                                  userResult.status === 'offline'
+                                    ? 'online'
+                                    : userResult.status,
+                                updateLastOnline: 1
                               }
                             )
                             .then((): void => {
-                              if (existingUser.session.socket) {
-                                socket.broadcast
-                                  .to(existingUser.session.socket)
-                                  .emit('logout old session');
-                              }
-                              const userStatusNotif: UserStatusNotif = {
-                                user: {
-                                  id: existingUser.id,
-                                  session: {
-                                    status: updatedUser.session.status
-                                      .replace('appear', '')
-                                      .trim() as 'online' | 'away' | 'offline',
-                                    lastOnline: updatedUser.session.lastOnline
+                              connection
+                                .execute(
+                                  'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)',
+                                  {userId: userResult.id}
+                                )
+                                .then((loggedInUserPacket): void => {
+                                  const [loggedInUserResult] = (
+                                    loggedInUserPacket[0] as ProcedureCallPacket<
+                                      RowDataPacket[]
+                                    >
+                                  )[0];
+                                  if (!loggedInUserResult) {
+                                    return callback(
+                                      createResponse({
+                                        event: event,
+                                        logger: logger,
+                                        code: '500',
+                                        message: 'user was not found.'
+                                      })
+                                    );
                                   }
-                                }
-                              };
-                              socket.broadcast.emit(
-                                'update user status',
-                                userStatusNotif
-                              );
-                              return callback(
-                                createResponse({
-                                  event: event,
-                                  logger: logger,
-                                  data: {
-                                    token: sign(
-                                      {
-                                        id: existingUser.id,
-                                        session: updatedUser.session.id
-                                      },
-                                      Buffer.from(
-                                        process.env.JWT_KEY_PRIVATE_BASE64,
-                                        'base64'
-                                      ).toString(),
-                                      {
-                                        algorithm: 'RS256',
-                                        issuer: 'resen',
-                                        subject: existingUser.userName
+                                  const loggedInUser: User = {
+                                    id: loggedInUserResult.userid,
+                                    userName: loggedInUserResult.username,
+                                    displayName: loggedInUserResult.displayname,
+                                    password: loggedInUserResult.password,
+                                    joinDate: loggedInUserResult.createdtime,
+                                    session: {
+                                      id: loggedInUserResult.sessionid,
+                                      socket: loggedInUserResult.socketid,
+                                      status: loggedInUserResult.status,
+                                      lastOnline: loggedInUserResult.lastonline
+                                    }
+                                  };
+                                  if (userResult.socketid) {
+                                    socket.broadcast
+                                      .to(userResult.socketid)
+                                      .emit('logout old session');
+                                  }
+                                  const userStatusNotif: UserStatusNotif = {
+                                    user: {
+                                      id: loggedInUser.id,
+                                      session: {
+                                        status: loggedInUser.session.status
+                                          .replace('appear', '')
+                                          .trim() as
+                                          | 'online'
+                                          | 'away'
+                                          | 'offline',
+                                        lastOnline:
+                                          loggedInUser.session.lastOnline
                                       }
-                                    )
-                                  }
-                                })
-                              );
+                                    }
+                                  };
+                                  socket.broadcast.emit(
+                                    'update user status',
+                                    userStatusNotif
+                                  );
+                                  return callback(
+                                    createResponse({
+                                      event: event,
+                                      logger: logger,
+                                      data: {
+                                        token: sign(
+                                          {
+                                            id: loggedInUser.id,
+                                            session: loggedInUser.session.id
+                                          },
+                                          Buffer.from(
+                                            process.env.JWT_KEY_PRIVATE_BASE64,
+                                            'base64'
+                                          ).toString(),
+                                          {
+                                            algorithm: 'RS256',
+                                            issuer: 'resen',
+                                            subject: loggedInUser.userName
+                                          }
+                                        )
+                                      }
+                                    })
+                                  );
+                                });
                             });
                           return undefined;
                         }
