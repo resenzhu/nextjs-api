@@ -146,11 +146,14 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                 userId: userResult.userid,
                                 sessionId: nanoid(),
                                 socketId: socket.id,
-                                status:
-                                  userResult.status === 'offline'
-                                    ? 'online'
-                                    : userResult.status,
-                                updateLastOnline: 1
+                                status: userResult.status.includes('appear')
+                                  ? userResult.status
+                                  : 'online',
+                                updateLastOnline: userResult.status.includes(
+                                  'appear'
+                                )
+                                  ? 0
+                                  : 1
                               }
                             )
                             .then((): void => {
