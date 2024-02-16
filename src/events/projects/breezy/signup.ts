@@ -157,11 +157,11 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                       'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)',
                       {userName: data.userName}
                     )
-                    .then((packet1): void => {
-                      const [userResult1] = (
-                        packet1[0] as ProcedureCallPacket<RowDataPacket[]>
+                    .then((userPacket): void => {
+                      const [userResult] = (
+                        userPacket[0] as ProcedureCallPacket<RowDataPacket[]>
                       )[0];
-                      if (userResult1) {
+                      if (userResult) {
                         return callback(
                           createResponse({
                             event: event,
@@ -191,13 +191,13 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                 'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERNAME (:userName)',
                                 {userName: data.userName}
                               )
-                              .then((packet2): void => {
-                                const [userResult2] = (
-                                  packet2[0] as ProcedureCallPacket<
+                              .then((signedUpUserPacket): void => {
+                                const [signedUpUserResult] = (
+                                  signedUpUserPacket[0] as ProcedureCallPacket<
                                     RowDataPacket[]
                                   >
                                 )[0];
-                                if (!userResult2) {
+                                if (!signedUpUserResult) {
                                   return callback(
                                     createResponse({
                                       event: event,
@@ -208,16 +208,16 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                   );
                                 }
                                 const newUser: User = {
-                                  id: userResult2.userid,
-                                  userName: userResult2.username,
-                                  displayName: userResult2.displayname,
-                                  password: userResult2.password,
-                                  joinDate: userResult2.createdtime,
+                                  id: signedUpUserResult.userid,
+                                  userName: signedUpUserResult.username,
+                                  displayName: signedUpUserResult.displayname,
+                                  password: signedUpUserResult.password,
+                                  joinDate: signedUpUserResult.createdtime,
                                   session: {
-                                    id: userResult2.sessionid,
-                                    socket: userResult2.socketid,
-                                    status: userResult2.status,
-                                    lastOnline: userResult2.lastonline
+                                    id: signedUpUserResult.sessionid,
+                                    socket: signedUpUserResult.socketid,
+                                    status: signedUpUserResult.status,
+                                    lastOnline: signedUpUserResult.lastonline
                                   }
                                 };
                                 const newUserNotif: NewUserNotif = {
