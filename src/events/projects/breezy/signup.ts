@@ -167,7 +167,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                             event: event,
                             logger: logger,
                             code: '40901',
-                            message: 'username already exists.'
+                            message: 'username already taken.'
                           })
                         );
                       }
@@ -203,11 +203,11 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                       event: event,
                                       logger: logger,
                                       code: '500',
-                                      message: 'user was not found.'
+                                      message: 'signed up user was not found.'
                                     })
                                   );
                                 }
-                                const newUser: User = {
+                                const signedUpUser: User = {
                                   id: signedUpUserResult.userid,
                                   userName: signedUpUserResult.username,
                                   displayName: signedUpUserResult.displayname,
@@ -222,17 +222,18 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                 };
                                 const newUserNotif: NewUserNotif = {
                                   user: {
-                                    id: newUser.id,
-                                    userName: newUser.userName,
-                                    displayName: newUser.displayName,
+                                    id: signedUpUser.id,
+                                    userName: signedUpUser.userName,
+                                    displayName: signedUpUser.displayName,
                                     session: {
-                                      status: newUser.session.status
+                                      status: signedUpUser.session.status
                                         .replace('appear', '')
                                         .trim() as
                                         | 'online'
                                         | 'away'
                                         | 'offline',
-                                      lastOnline: newUser.session.lastOnline
+                                      lastOnline:
+                                        signedUpUser.session.lastOnline
                                     }
                                   }
                                 };
@@ -247,8 +248,8 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                     data: {
                                       token: sign(
                                         {
-                                          id: newUser.id,
-                                          session: newUser.session.id
+                                          id: signedUpUser.id,
+                                          session: signedUpUser.session.id
                                         },
                                         Buffer.from(
                                           process.env.JWT_KEY_PRIVATE_BASE64,
@@ -257,7 +258,7 @@ const signupEvent = (socket: Socket, logger: Logger): void => {
                                         {
                                           algorithm: 'RS256',
                                           issuer: 'resen',
-                                          subject: newUser.userName
+                                          subject: signedUpUser.userName
                                         }
                                       )
                                     }

@@ -50,9 +50,12 @@ const fetchUsersEvent = (
                   ) {
                     connection
                       .execute(
-                        'CALL SP_BREEZY_UPDATE_USER_SESSION (:userId, :sessionId, :socketId, :status)',
+                        'CALL SP_BREEZY_UPDATE_USER (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status)',
                         {
                           userId: existingUser.id,
+                          userName: existingUser.userName,
+                          displayName: existingUser.displayName,
+                          password: existingUser.password,
                           sessionId: existingUser.session.id,
                           socketId: null,
                           status: existingUser.session.status

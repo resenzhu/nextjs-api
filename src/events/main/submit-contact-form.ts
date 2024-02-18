@@ -131,56 +131,62 @@ const submitContactFormEvent = (socket: Socket, logger: Logger): void => {
             .getConnection()
             .then((connection): void => {
               connection
-                .execute(
-                  'CALL SP_MAIN_GET_CONTACT_SUBMISSIONS_BY_SUBMITTER (:submitter)',
-                  {submitter: btoa(userAgent)}
-                )
-                .then((packet): void => {
-                  const [submissionsResult] = packet[0] as ProcedureCallPacket<
-                    RowDataPacket[]
-                  >;
-                  if (submissionsResult.length === 5) {
-                    return callback(
-                      createResponse({
-                        event: event,
-                        logger: logger,
-                        code: '429',
-                        message: 'too many requests.'
+                .execute('CALL SP_MAIN_PURGE_EXPIRED_CONTACT_SUBMISSIONS')
+                .then((): void => {
+                  connection
+                    .execute(
+                      'CALL SP_MAIN_GET_CONTACT_SUBMISSIONS_BY_SUBMITTER (:submitter)',
+                      {submitter: btoa(userAgent)}
+                    )
+                    .then((submissionsPacket): void => {
+                      const [submissionsResult] =
+                        submissionsPacket[0] as ProcedureCallPacket<
+                          RowDataPacket[]
+                        >;
+                      if (submissionsResult.length === 5) {
+                        return callback(
+                          createResponse({
+                            event: event,
+                            logger: logger,
+                            code: '429',
+                            message: 'too many requests.'
+                          })
+                        );
+                      }
+                      sendEmail({
+                        name: data.name,
+                        email: data.email,
+                        message: data.message
                       })
-                    );
-                  }
-                  sendEmail({
-                    name: data.name,
-                    email: data.email,
-                    message: data.message
-                  })
-                    .then((): void => {
-                      connection
-                        .execute(
-                          'CALL SP_MAIN_ADD_CONTACT_SUBMISSION (:submitter)',
-                          {submitter: btoa(userAgent)}
-                        )
-                        .then((): void =>
+                        .then((): void => {
+                          connection
+                            .execute(
+                              'CALL SP_MAIN_ADD_CONTACT_SUBMISSION (:submitter)',
+                              {submitter: btoa(userAgent)}
+                            )
+                            .then((): void =>
+                              callback(
+                                createResponse({
+                                  event: event,
+                                  logger: logger
+                                })
+                              )
+                            );
+                        })
+                        .catch((mailjetError: Error): void =>
                           callback(
                             createResponse({
                               event: event,
-                              logger: logger
+                              logger: logger,
+                              code: '503',
+                              message:
+                                'an error occured while sending the email.',
+                              detail: mailjetError.message
                             })
                           )
                         );
-                    })
-                    .catch((mailjetError: Error): void =>
-                      callback(
-                        createResponse({
-                          event: event,
-                          logger: logger,
-                          code: '503',
-                          message: 'an error occured while sending the email.',
-                          detail: mailjetError.message
-                        })
-                      )
-                    );
-                  return undefined;
+                      return undefined;
+                    });
                 })
                 .finally((): void => {
                   connection.release();

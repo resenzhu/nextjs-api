@@ -1,9 +1,8 @@
 import {type JwtPayload, verifyJwt} from '@utils/breezy';
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
 import type {User, UserStatusNotif} from '@events/projects/breezy';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import {database} from '@utils/database';
 import joi from 'joi';
@@ -59,94 +58,107 @@ const updateUserStatusEvent = (socket: Socket, logger: Logger): void => {
             .getConnection()
             .then((connection): void => {
               connection
-                .execute(
-                  `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
-                   WHERE userid = :userId AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
-                   LIMIT 1`,
-                  {
-                    userId: verifiedJwt.id,
-                    currentDate: DateTime.utc().toISODate()
-                  }
-                )
-                .then((packet): void => {
-                  const [userResult] = packet[0] as RowDataPacket[];
+                .execute('CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)', {
+                  userId: verifiedJwt.id
+                })
+                .then((userPacket): void => {
+                  const [userResult] = (
+                    userPacket[0] as ProcedureCallPacket<RowDataPacket[]>
+                  )[0];
                   if (!userResult) {
                     return callback(
                       createResponse({
                         event: event,
                         logger: logger,
                         code: '404',
-                        message: 'user was not found.'
+                        message: 'current user was not found.'
                       })
                     );
                   }
-                  const existingUser: User = {
-                    id: userResult.userid,
-                    userName: userResult.username,
-                    displayName: userResult.displayname,
-                    password: userResult.password,
-                    joinDate: userResult.createdtime,
-                    session: {
-                      id: userResult.sessionid,
-                      socket: userResult.socketid,
-                      status: userResult.status,
-                      lastOnline: userResult.lastonline
-                    }
-                  };
-                  const updatedUser: User = {
-                    ...existingUser,
-                    session: {
-                      ...existingUser.session,
-                      status: data.status,
-                      lastOnline:
-                        data.status === 'online' ||
-                        existingUser.session.status === 'online'
-                          ? DateTime.utc().toISO()
-                          : existingUser.session.lastOnline
-                    }
-                  };
                   connection
                     .execute(
-                      `UPDATE breezy_users
-                       SET status = :status, lastonline = :lastOnline, updatedtime = :updatedTime
-                       WHERE userid = :userId`,
+                      'CALL SP_BREEZY_UPDATE_USER (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :updateLastOnline)',
                       {
-                        status: updatedUser.session.status,
-                        lastonline: updatedUser.session.lastOnline,
-                        updatedTime: DateTime.utc().toISO(),
-                        userId: existingUser.id
+                        userId: userResult.userid,
+                        userName: userResult.username,
+                        displayName: userResult.displayname,
+                        password: userResult.password,
+                        sessionId: userResult.sessionid,
+                        socketId: userResult.socketid,
+                        status: data.status,
+                        updateLastOnline:
+                          data.status === 'online' ||
+                          userResult.status === 'online'
+                            ? 1
+                            : 0
                       }
                     )
                     .then((): void => {
-                      const userStatusNotif: UserStatusNotif = {
-                        user: {
-                          id: existingUser.id,
-                          session: {
-                            status: updatedUser.session.status
-                              .replace('appear', '')
-                              .trim() as 'online' | 'away' | 'offline',
-                            lastOnline: updatedUser.session.lastOnline
+                      connection
+                        .execute(
+                          'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)',
+                          {userId: userResult.userid}
+                        )
+                        .then((updatedUserPacket): void => {
+                          const [updatedUserResult] = (
+                            updatedUserPacket[0] as ProcedureCallPacket<
+                              RowDataPacket[]
+                            >
+                          )[0];
+                          if (!updatedUserResult) {
+                            return callback(
+                              createResponse({
+                                event: event,
+                                logger: logger,
+                                code: '500',
+                                message: 'updated user was not found.'
+                              })
+                            );
                           }
-                        }
-                      };
-                      socket.broadcast.emit(
-                        'update user status',
-                        userStatusNotif
-                      );
-                      return callback(
-                        createResponse({
-                          event: event,
-                          logger: logger,
-                          data: {
+                          const updatedUser: User = {
+                            id: updatedUserResult.userid,
+                            userName: updatedUserResult.username,
+                            displayName: updatedUserResult.displayname,
+                            password: updatedUserResult.password,
+                            joinDate: updatedUserResult.createdtime,
+                            session: {
+                              id: updatedUserResult.sessionid,
+                              socket: updatedUserResult.socketid,
+                              status: updatedUserResult.status,
+                              lastOnline: updatedUserResult.lastonline
+                            }
+                          };
+                          const userStatusNotif: UserStatusNotif = {
                             user: {
+                              id: updatedUser.id,
                               session: {
+                                status: updatedUser.session.status
+                                  .replace('appear', '')
+                                  .trim() as 'online' | 'away' | 'offline',
                                 lastOnline: updatedUser.session.lastOnline
                               }
                             }
-                          }
-                        })
-                      );
+                          };
+                          socket.broadcast.emit(
+                            'update user status',
+                            userStatusNotif
+                          );
+                          return callback(
+                            createResponse({
+                              event: event,
+                              logger: logger,
+                              data: {
+                                user: {
+                                  session: {
+                                    lastOnline: updatedUser.session.lastOnline
+                                  }
+                                }
+                              }
+                            })
+                          );
+                        });
                     });
+                  return undefined;
                 })
                 .finally((): void => {
                   connection.release();

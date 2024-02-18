@@ -1,88 +1,141 @@
-import {
-  type ClientResponse,
-  createErrorResponse,
-  createSuccessResponse,
-  obfuscateResponse
-} from '@utils/response';
-import type {JWTPayload, User, UserStatusNotif} from '@events/projects/breezy';
-import {getItem, setItem} from 'node-persist';
-import {DateTime} from 'luxon';
+import {type JwtPayload, verifyJwt} from '@utils/breezy';
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
+import {type Response, createResponse} from '@utils/response';
+import type {User, UserStatusNotif} from '@events/projects/breezy';
 import type {Logger} from 'pino';
 import type {Socket} from 'socket.io';
-import {storage} from '@utils/storage';
-import {verifyJwt} from '@utils/breezy';
+import {database} from '@utils/database';
 
 const logoutEvent = (socket: Socket, logger: Logger): void => {
   const event: string = 'logout';
-  socket.on(event, (callback: (response: ClientResponse) => void): void => {
+  socket.on(event, (callback: (response: Response) => void): void => {
     logger.info(event);
     verifyJwt(socket)
       .then((jwtPayload): void => {
-        const verifiedJwt = jwtPayload as JWTPayload;
-        storage.then((): void => {
-          getItem('breezy users').then((users: User[]): void => {
-            let offlineUser: User | null = null;
-            const updatedUsers = users.map((user): User => {
-              if (user.id === verifiedJwt.id) {
-                const updatedUser: User = {
-                  ...user,
-                  session: {
-                    ...user.session,
-                    socket: null,
-                    status: 'offline',
-                    lastOnline: DateTime.utc().toISO()
-                  }
-                };
-                offlineUser = updatedUser;
-                return updatedUser;
-              }
-              return user;
-            });
-            const ttl = DateTime.max(
-              ...updatedUsers.map(
-                (user): DateTime =>
-                  DateTime.fromISO(user.session.lastOnline, {zone: 'utc'})
-              )
-            )
-              .plus({weeks: 1})
-              .diff(DateTime.utc(), ['milliseconds']).milliseconds;
-            setItem('breezy users', updatedUsers, {ttl: ttl}).then((): void => {
-              if (offlineUser) {
-                const userStatusNotif: UserStatusNotif = {
-                  user: {
-                    id: offlineUser.id,
-                    session: {
-                      status: offlineUser.session.status
-                        .replace('appear', '')
-                        .trim() as 'online' | 'away' | 'offline',
-                      lastOnline: offlineUser.session.lastOnline
+        const verifiedJwt = jwtPayload as JwtPayload;
+        database
+          .getConnection()
+          .then((connection): void => {
+            connection
+              .execute('CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)', {
+                userId: verifiedJwt.id
+              })
+              .then((userPacket): void => {
+                const [userResult] = (
+                  userPacket[0] as ProcedureCallPacket<RowDataPacket[]>
+                )[0];
+                if (!userResult) {
+                  return callback(
+                    createResponse({
+                      event: event,
+                      logger: logger,
+                      code: '404',
+                      message: 'current user was not found.'
+                    })
+                  );
+                }
+                connection
+                  .execute(
+                    'CALL SP_BREEZY_UPDATE_USER (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :updateLastOnline)',
+                    {
+                      userId: userResult.userid,
+                      userName: userResult.username,
+                      displayName: userResult.displayname,
+                      password: userResult.password,
+                      sessionId: userResult.sessionid,
+                      socketId: null,
+                      status: 'offline',
+                      updateLastOnline: 1
                     }
-                  }
-                };
-                socket.broadcast.emit('update user status', userStatusNotif);
-              }
-              const response: ClientResponse = createSuccessResponse({});
-              logger.info({response: response}, `${event} success`);
-              return callback(response);
-            });
-          });
-        });
+                  )
+                  .then((): void => {
+                    connection
+                      .execute(
+                        'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)',
+                        {userId: userResult.userid}
+                      )
+                      .then((offlineUserPacket): void => {
+                        const [offlineUserResult] = (
+                          offlineUserPacket[0] as ProcedureCallPacket<
+                            RowDataPacket[]
+                          >
+                        )[0];
+                        if (!offlineUserResult) {
+                          return callback(
+                            createResponse({
+                              event: event,
+                              logger: logger,
+                              code: '500',
+                              message: 'offline user was not found.'
+                            })
+                          );
+                        }
+                        const offlineUser: User = {
+                          id: offlineUserResult.userid,
+                          userName: offlineUserResult.username,
+                          displayName: offlineUserResult.displayname,
+                          password: offlineUserResult.password,
+                          joinDate: offlineUserResult.createdtime,
+                          session: {
+                            id: offlineUserResult.sessionid,
+                            socket: offlineUserResult.socketid,
+                            status: offlineUserResult.status,
+                            lastOnline: offlineUserResult.lastonline
+                          }
+                        };
+                        const userStatusNotif: UserStatusNotif = {
+                          user: {
+                            id: offlineUser.id,
+                            session: {
+                              status: offlineUser.session.status
+                                .replace('appear', '')
+                                .trim() as 'online' | 'away' | 'offline',
+                              lastOnline: offlineUser.session.lastOnline
+                            }
+                          }
+                        };
+                        socket.broadcast.emit(
+                          'update user status',
+                          userStatusNotif
+                        );
+                        return callback(
+                          createResponse({
+                            event: event,
+                            logger: logger
+                          })
+                        );
+                      });
+                  });
+                return undefined;
+              })
+              .finally((): void => {
+                connection.release();
+              });
+          })
+          .catch((connectionError: NodeJS.ErrnoException): void =>
+            callback(
+              createResponse({
+                event: event,
+                logger: logger,
+                code: '500',
+                message: 'an error occured while connecting to database.',
+                detail: connectionError.message
+              })
+            )
+          );
       })
-      .catch((jwtError: Error): void => {
-        const response: ClientResponse = createErrorResponse({
-          code: jwtError.message.split('|')[0],
-          message: jwtError.message.split('|')[1]
-        });
-        logger.warn(
-          {
-            response: response,
-            error:
+      .catch((jwtError: Error): void =>
+        callback(
+          createResponse({
+            event: event,
+            logger: logger,
+            code: jwtError.message.split('|')[0],
+            message: jwtError.message.split('|')[1],
+            detail:
               jwtError.message.split('|')[2] ?? jwtError.message.split('|')[1]
-          },
-          `${event} failed`
-        );
-        return callback(obfuscateResponse(response));
-      });
+          })
+        )
+      );
   });
 };
 

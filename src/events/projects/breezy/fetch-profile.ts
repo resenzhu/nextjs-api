@@ -1,8 +1,7 @@
 import {type JwtPayload, verifyJwt} from '@utils/breezy';
+import type {ProcedureCallPacket, RowDataPacket} from 'mysql2/promise';
 import {type Response, createResponse} from '@utils/response';
-import {DateTime} from 'luxon';
 import type {Logger} from 'pino';
-import type {RowDataPacket} from 'mysql2/promise';
 import type {Socket} from 'socket.io';
 import type {User} from '@events/projects/breezy';
 import {database} from '@utils/database';
@@ -18,28 +17,24 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
           .getConnection()
           .then((connection): void => {
             connection
-              .execute(
-                `SELECT DISTINCT userid, username, displayname, password, sessionid, socketid, status, lastonline, createdtime FROM breezy_users
-                 WHERE userid = :userId AND TIMESTAMPDIFF(DAY, DATE(lastonline), :currentDate) <= 14
-                 LIMIT 1`,
-                {
-                  userId: verifiedJwt.id,
-                  currentDate: DateTime.utc().toISODate()
-                }
-              )
-              .then((packet): void => {
-                const [userResult] = packet[0] as RowDataPacket[];
+              .execute('CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)', {
+                userId: verifiedJwt.id
+              })
+              .then((userPacket): void => {
+                const [userResult] = (
+                  userPacket[0] as ProcedureCallPacket<RowDataPacket[]>
+                )[0];
                 if (!userResult) {
                   return callback(
                     createResponse({
                       event: event,
                       logger: logger,
                       code: '404',
-                      message: 'user was not found.'
+                      message: 'current user was not found.'
                     })
                   );
                 }
-                const existingUser: User = {
+                const currentUser: User = {
                   id: userResult.userid,
                   userName: userResult.username,
                   displayName: userResult.displayname,
@@ -58,12 +53,12 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
                     logger: logger,
                     data: {
                       user: {
-                        id: existingUser.id,
-                        username: existingUser.userName,
-                        displayName: existingUser.displayName,
+                        id: currentUser.id,
+                        username: currentUser.userName,
+                        displayName: currentUser.displayName,
                         session: {
-                          status: existingUser.session.status,
-                          lastOnline: existingUser.session.lastOnline
+                          status: currentUser.session.status,
+                          lastOnline: currentUser.session.lastOnline
                         }
                       }
                     }

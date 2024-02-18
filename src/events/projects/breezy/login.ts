@@ -141,19 +141,16 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                           }
                           connection
                             .execute(
-                              'CALL SP_BREEZY_UPDATE_USER_SESSION (:userId, :sessionId, :socketId, :status, :updateLastOnline)',
+                              'CALL SP_BREEZY_UPDATE_USER (:userId, :userName, :displayName, :password, :sessionId, :socketId, :status, :updateLastOnline)',
                               {
                                 userId: userResult.userid,
+                                userName: userResult.username,
+                                displayName: userResult.displayname,
+                                password: userResult.password,
                                 sessionId: nanoid(),
                                 socketId: socket.id,
-                                status: userResult.status.includes('appear')
-                                  ? userResult.status
-                                  : 'online',
-                                updateLastOnline: userResult.status.includes(
-                                  'appear'
-                                )
-                                  ? 0
-                                  : 1
+                                status: 'online',
+                                updateLastOnline: 1
                               }
                             )
                             .then((): void => {
@@ -174,7 +171,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                                         event: event,
                                         logger: logger,
                                         code: '500',
-                                        message: 'user was not found.'
+                                        message: 'logged in user was not found.'
                                       })
                                     );
                                   }

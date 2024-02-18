@@ -1,10 +1,10 @@
 import {createRouterLogger, getRedaction} from '@utils/logger';
 import {
-  // disconnect,
+  disconnect,
   fetchProfile,
   fetchUsers,
   login,
-  // logout,
+  logout,
   signup,
   updateUserStatus
 } from '@events/projects/breezy';
@@ -28,8 +28,8 @@ const breezyRouter = (server: Server): void => {
       fetchUsers(socket, breezyLogger, {namespace: breezy});
       fetchProfile(socket, breezyLogger);
       updateUserStatus(socket, breezyLogger);
-      // logout(socket, breezyLogger);
-      // disconnect(socket, breezyLogger);
+      logout(socket, breezyLogger);
+      disconnect(socket, breezyLogger);
     });
   });
 };

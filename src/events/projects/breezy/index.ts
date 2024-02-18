@@ -1,4 +1,4 @@
-// export {default as disconnect} from '@events/projects/breezy/disconnect';
+export {default as disconnect} from '@events/projects/breezy/disconnect';
 export {default as fetchProfile} from '@events/projects/breezy/fetch-profile';
 export {default as fetchUsers} from '@events/projects/breezy/fetch-users';
 export {
@@ -6,7 +6,7 @@ export {
   type LoginReq,
   type UserStatusNotif
 } from '@events/projects/breezy/login';
-// export {default as logout} from '@events/projects/breezy/logout';
+export {default as logout} from '@events/projects/breezy/logout';
 export {
   default as signup,
   type SignUpReq,
