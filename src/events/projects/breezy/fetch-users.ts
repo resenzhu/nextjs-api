@@ -115,7 +115,7 @@ const fetchUsersEvent = (
                         .filter((user): boolean => user.id !== verifiedJwt.id)
                         .map((user): object => ({
                           id: user.id,
-                          username: user.userName,
+                          userName: user.userName,
                           displayName: user.displayName,
                           session: {
                             status: user.session.status

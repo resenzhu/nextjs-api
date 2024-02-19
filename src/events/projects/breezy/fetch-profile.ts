@@ -54,7 +54,7 @@ const fetchProfileEvent = (socket: Socket, logger: Logger): void => {
                     data: {
                       user: {
                         id: currentUser.id,
-                        username: currentUser.userName,
+                        userName: currentUser.userName,
                         displayName: currentUser.displayName,
                         session: {
                           status: currentUser.session.status,

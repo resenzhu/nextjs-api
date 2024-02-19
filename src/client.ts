@@ -109,7 +109,7 @@ const breezyEvent: {
       length: 2
     });
     call(breezySocket, 'signup', {
-      username: name.split(' ')[0]?.toLowerCase(),
+      userName: name.split(' ')[0]?.toLowerCase(),
       displayName: name,
       password: password,
       honeypot: '',
