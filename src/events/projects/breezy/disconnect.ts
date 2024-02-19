@@ -29,7 +29,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
                     password: userResult.password,
                     sessionId: userResult.sessionid,
                     socketId: null,
-                    status: 'offline',
+                    status: userResult.status,
                     updateLastOnline: 1
                   }
                 )
@@ -63,9 +63,7 @@ const disconnectEvent = (socket: Socket, logger: Logger): void => {
                           user: {
                             id: disconnectedUser.id,
                             session: {
-                              status: disconnectedUser.session.status
-                                .replace('appear', '')
-                                .trim() as 'online' | 'away' | 'offline',
+                              status: 'offline',
                               lastOnline: disconnectedUser.session.lastOnline
                             }
                           }
