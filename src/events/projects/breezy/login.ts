@@ -157,7 +157,7 @@ const loginEvent = (socket: Socket, logger: Logger): void => {
                               connection
                                 .execute(
                                   'CALL SP_BREEZY_GET_ACTIVE_USER_BY_USERID (:userId)',
-                                  {userId: userResult.id}
+                                  {userId: userResult.userid}
                                 )
                                 .then((loggedInUserPacket): void => {
                                   const [loggedInUserResult] = (
