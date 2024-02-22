@@ -2,7 +2,7 @@ CREATE DATABASE  IF NOT EXISTS `nextjs` /*!40100 DEFAULT CHARACTER SET utf8mb4 C
 USE `nextjs`;
 -- MySQL dump 10.13  Distrib 8.0.36, for Win64 (x86_64)
 --
--- Host: 127.0.0.1    Database: nextjs
+-- Host: localhost    Database: nextjs
 -- ------------------------------------------------------
 -- Server version	8.0.36
 
@@ -49,4 +49,4 @@ CREATE TABLE `breezy_users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2024-02-21  0:48:41
+-- Dump completed on 2024-02-22 15:07:13
