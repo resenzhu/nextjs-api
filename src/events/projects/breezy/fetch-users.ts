@@ -97,7 +97,7 @@ const fetchUsersEvent = (
                                   }
                                 }
                               };
-                              socket.broadcast.emit(
+                              namespace.emit(
                                 'update user status',
                                 userStatusNotif
                               );
